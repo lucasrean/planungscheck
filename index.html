@@ -1,0 +1,1506 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Planungscheck · Was geht auf diesem Grundstück?</title>
+<meta name="description" content="Adresse in Münster eintragen: Grundstück aus dem Kataster, Bebauungsplan, das größte Haus je Geschosszahl und die Zahlen nach Münsteraner Satzung. Rechnet auf Ihrem Gerät.">
+<meta name="robots" content="noindex">
+<meta property="og:title" content="Planungscheck · Was geht auf diesem Grundstück?">
+<meta property="og:description" content="Von der Adresse zur ersten Aussage in Sekunden: Grundstück, Bebauungsplan, größtes Haus je Geschosszahl, Stellplätze und Spielfläche. Als DXF weiter ins CAD.">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Crect x='1.5' y='1.5' width='13' height='13' rx='3' fill='none' stroke='%232257e0' stroke-width='1.5'/%3E%3Crect x='5' y='5' width='6' height='6' fill='%232257e0'/%3E%3C/svg%3E">
+<style>
+/* Nüchternes Werkzeug: Angaben links, Zeichenfläche in der Mitte, Ergebnis rechts, Statusleiste unten.
+   Farbe trägt Bedeutung: Blau bedient, Rot verletzt, Grün passt, Gelb fehlt. Keine externen Dateien. */
+:root {
+  --papier: #ffffff; --grund: #f3f4f6; --flaeche: #f8f9fb; --tusche: #15181d; --blei: #5d6673; --raster: #e3e6ea; --kante: #c9ced6; --gebaeude: #e9ecf0;
+  --akzent: #2257e0; --akzent-flaeche: rgba(34, 87, 224, .10);
+  --ok: #0b7a4b; --ok-flaeche: rgba(11, 122, 75, .11); --warn: #9a5800; --warn-flaeche: rgba(200, 120, 0, .14); --fehl: #c42b2b; --fehl-flaeche: rgba(196, 43, 43, .11);
+  --text: system-ui, -apple-system, "Segoe UI", "Helvetica Neue", Arial, sans-serif;
+  --mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  --schatten: 0 1px 2px rgba(16, 24, 40, .06), 0 4px 14px rgba(16, 24, 40, .07);
+}
+@media (prefers-color-scheme: dark) {
+  :root { color-scheme: dark; --papier: #15181c; --grund: #0c0e11; --flaeche: #0f1216; --tusche: #e9ecf0; --blei: #8d96a3; --raster: #232830; --kante: #363d48; --gebaeude: #1d2128;
+          --akzent: #6c9cff; --akzent-flaeche: rgba(108, 156, 255, .15);
+          --ok: #3fcf8e; --ok-flaeche: rgba(63, 207, 142, .14); --warn: #f0a93a; --warn-flaeche: rgba(240, 169, 58, .15); --fehl: #ff6b6b; --fehl-flaeche: rgba(255, 107, 107, .15);
+          --schatten: 0 1px 2px rgba(0, 0, 0, .4), 0 4px 14px rgba(0, 0, 0, .35); }
+}
+* { box-sizing: border-box; }
+[hidden] { display: none !important; }
+html { -webkit-text-size-adjust: 100%; }
+body { margin: 0; background: var(--grund); color: var(--tusche); font: 13px/1.45 var(--text); }
+.label, label, th { font: 500 11.5px/1.2 var(--text); color: var(--blei); }
+.zahl { font-family: var(--mono); font-variant-numeric: tabular-nums; }
+.klein { font-size: 12px; color: var(--blei); margin: 0; }
+
+.app { display: grid; grid-template-columns: 304px minmax(0, 1fr) minmax(340px, 420px); grid-template-rows: auto minmax(0, 1fr) auto; height: 100vh; }
+.leiste { grid-column: 1 / -1; display: flex; align-items: center; gap: 8px 20px; min-height: 46px; padding: 6px 12px; background: var(--papier); border-bottom: 1px solid var(--raster); flex-wrap: wrap; }
+.marke { display: flex; align-items: center; gap: 9px; }
+.marke::before { content: ""; width: 15px; height: 15px; border: 1.5px solid var(--akzent); border-radius: 3px; background: var(--akzent); box-shadow: inset 0 0 0 3px var(--papier); }
+.marke strong { font: 600 14px/1 var(--text); letter-spacing: -.01em; }
+.entwurf { font: 500 10.5px/1 var(--mono); color: var(--blei); border: 1px solid var(--kante); border-radius: 4px; padding: 3px 6px; }
+.plankopf { display: flex; gap: 4px 18px; flex: 1; flex-wrap: wrap; min-width: 0; }
+.plankopf > div { display: flex; gap: 6px; align-items: baseline; }
+.plankopf .wert { font: 500 12px/1.2 var(--text); }
+@media screen { .plankopf { display: none; } } /* Eckdaten nur auf dem gedruckten Blatt */
+.suchzeile { display: flex; gap: 6px; flex: 1 1 260px; max-width: 440px; min-width: 0; margin-right: auto; }
+.suchzeile input { flex: 1; }
+.trenner { width: 1px; align-self: stretch; background: var(--raster); margin: 2px 2px; }
+
+/* Angaben */
+#angaben { overflow-y: auto; padding: 0 14px 40px; background: var(--papier); border-right: 1px solid var(--raster); }
+details.gruppe { border-bottom: 1px solid var(--raster); }
+details.gruppe > summary { list-style: none; display: flex; gap: 10px; align-items: baseline; padding: 11px 0; font: 600 13px/1.2 var(--text); color: var(--tusche); cursor: pointer; }
+details.gruppe > summary::-webkit-details-marker { display: none; }
+details.gruppe > summary .nr { font: 500 11px/1 var(--mono); color: var(--blei); width: 1.1em; }
+details.gruppe > summary::after { content: "+"; margin-left: auto; font: 400 14px/1 var(--mono); color: var(--blei); }
+details.gruppe[open] > summary::after { content: "–"; }
+details.gruppe > .inhalt { display: grid; gap: 12px; padding: 2px 0 16px; min-width: 0; }
+.inhalt details > summary { cursor: pointer; font: 500 12px/1.2 var(--text); color: var(--akzent); padding: 4px 0; }
+.inhalt details[open] > summary { margin-bottom: 10px; }
+.inhalt details > div { display: grid; gap: 12px; }
+label { display: grid; gap: 4px; min-width: 0; }
+input, select { font: 13px/1.3 var(--text); color: var(--tusche); background: var(--papier); border: 1px solid var(--kante); border-radius: 6px; padding: 6px 8px; width: 100%; min-width: 0; }
+input[type=number] { font-family: var(--mono); font-variant-numeric: tabular-nums; }
+input::placeholder { color: var(--blei); opacity: .7; }
+input:focus-visible, select:focus-visible { outline: 2px solid var(--akzent); outline-offset: -1px; border-color: var(--akzent); }
+button:focus-visible, summary:focus-visible { outline: 2px solid var(--akzent); outline-offset: 2px; }
+label.haken { display: flex; align-items: center; gap: 8px; font: 13px/1.3 var(--text); color: var(--tusche); }
+label.haken input { width: auto; accent-color: var(--akzent); }
+.paar { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.reihe { display: grid; grid-template-columns: repeat(auto-fit, minmax(84px, 1fr)); gap: 8px 10px; align-items: end; padding-bottom: 12px; border-bottom: 1px solid var(--raster); }
+.reihe .breit { grid-column: 1 / -1; }
+.seitenname { font: 600 12px/1.2 var(--text); color: var(--tusche); }
+button { font: 500 12px/1 var(--text); color: var(--tusche); background: var(--papier); border: 1px solid var(--kante); border-radius: 6px; padding: 7px 10px; cursor: pointer; justify-self: start; white-space: nowrap; }
+button:hover:not(:disabled) { background: var(--grund); border-color: var(--blei); }
+button:disabled { opacity: .4; cursor: default; }
+button.haupt { background: var(--akzent); border-color: var(--akzent); color: #fff; }
+button.haupt:hover:not(:disabled) { background: var(--akzent); border-color: var(--akzent); filter: brightness(1.1); }
+@media (prefers-color-scheme: dark) { button.haupt { color: #0c0e11; } }
+button.link { border: 0; padding: 0; background: none; font: inherit; color: var(--akzent); text-decoration: underline; white-space: normal; }
+button.link:hover:not(:disabled) { background: none; }
+.knoepfe { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; }
+
+/* Zeichenfläche */
+#buehne { position: relative; background: var(--flaeche); overflow: hidden; min-height: 0; }
+#plan { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
+#plan:focus-visible { outline: 2px solid var(--akzent); outline-offset: -3px; }
+#plan [data-haus], #plan [data-h], #plan [data-g], #plan [data-dreh] { touch-action: none; }
+#plan [data-haus] { cursor: grab; } #plan [data-h], #plan [data-g] { cursor: move; } #plan [data-dreh] { cursor: alias; }
+svg text { font-family: var(--mono); font-size: 10px; fill: var(--tusche); paint-order: stroke; stroke: var(--flaeche); stroke-width: 3px; stroke-linejoin: round; }
+svg .blei { fill: var(--blei); }
+svg .fehl { fill: var(--fehl); font-weight: 600; }
+svg .titel { font: 600 12px var(--text); fill: var(--akzent); }
+.ecke { position: absolute; display: flex; gap: 6px; align-items: center; flex-wrap: wrap; max-width: calc(100% - 24px); }
+.ecke.ol { top: 10px; left: 10px; } .ecke.or { top: 14px; right: 12px; } .ecke.ur { bottom: 10px; right: 12px; }
+.tafel { display: flex; gap: 2px; align-items: center; background: color-mix(in srgb, var(--papier) 92%, transparent); border: 1px solid var(--raster); border-radius: 8px; padding: 3px; box-shadow: var(--schatten); backdrop-filter: blur(6px); }
+.tafel button { border: 0; background: transparent; padding: 6px 8px; font-size: 14px; border-radius: 5px; }
+#ebenen { display: flex; gap: 2px; }
+#ebenen label { display: block; position: relative; padding: 6px 8px; border-radius: 5px; font: 500 12px/1 var(--text); color: var(--blei); cursor: pointer; }
+#ebenen input { position: absolute; opacity: 0; width: 0; height: 0; }
+#ebenen label:hover { background: var(--grund); }
+#ebenen label:has(input:checked) { background: var(--akzent-flaeche); color: var(--akzent); }
+#ebenen label:has(input:focus-visible) { outline: 2px solid var(--akzent); }
+.tasten { font-size: 11px; color: var(--blei); gap: 4px 10px; }
+kbd { font: 500 10px/1 var(--mono); color: var(--tusche); background: var(--papier); border: 1px solid var(--kante); border-bottom-width: 2px; border-radius: 4px; padding: 2px 4px; margin-right: 3px; }
+
+/* Statusleiste */
+.statusleiste { grid-column: 1 / -1; display: flex; align-items: center; min-height: 26px; padding: 0 12px; background: var(--papier); border-top: 1px solid var(--raster); font: 11px/1 var(--mono); color: var(--blei); white-space: nowrap; overflow: hidden; }
+.statusleiste > span + span { margin-left: 12px; padding-left: 12px; border-left: 1px solid var(--raster); }
+.statusleiste #kennzahl { color: var(--tusche); }
+.statusleiste .rechts { margin-left: auto; }
+#koord { min-width: 17ch; }
+
+/* Ergebnis */
+#blatt { overflow-y: auto; padding: 16px 16px 48px; display: grid; gap: 24px; align-content: start; background: var(--papier); border-left: 1px solid var(--raster); min-width: 0; }
+#blatt > * { min-width: 0; }
+.befund { display: grid; gap: 10px; }
+.kopfzeile { display: flex; justify-content: space-between; align-items: center; gap: 12px; }
+.chip { display: inline-flex; align-items: center; gap: 6px; font: 600 11px/1 var(--text); padding: 5px 9px 5px 8px; border-radius: 999px; color: var(--warn); background: var(--warn-flaeche); }
+.chip::before { content: ""; width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
+[data-status=ok] .chip { color: var(--ok); background: var(--ok-flaeche); } [data-status=fehl] .chip { color: var(--fehl); background: var(--fehl-flaeche); }
+.urteil { font: 600 19px/1.3 var(--text); letter-spacing: -.01em; margin: 0; text-wrap: balance; }
+.urteil em { font-style: normal; color: var(--warn); } [data-status=ok] .urteil em { color: var(--ok); } [data-status=fehl] .urteil em { color: var(--fehl); }
+.lead { font-size: 13px; margin: 0; color: var(--blei); }
+.lead .zahl { color: var(--tusche); font-weight: 600; }
+.legende { display: flex; gap: 4px 14px; flex-wrap: wrap; font-size: 11px; color: var(--blei); }
+.legende span { display: inline-flex; align-items: center; gap: 5px; }
+.legende i { width: 14px; height: 9px; border: 1px solid var(--akzent); background: var(--akzent-flaeche); }
+.legende i.jenseits { border-color: var(--fehl); background: repeating-linear-gradient(45deg, var(--fehl) 0 1px, transparent 1px 4px); }
+.legende i.vorschlag { border: 1.5px dashed var(--akzent); background: none; }
+.wege { display: grid; gap: 8px; }
+.weg { padding: 10px 12px; display: grid; gap: 3px; align-content: start; border: 1px solid var(--raster); border-radius: 8px; }
+.weg strong { font: 600 14px/1.3 var(--text); }
+.weg p { margin: 0; color: var(--blei); font-size: 12px; }
+.weg button { margin-top: 6px; }
+h2 { font: 600 11px/1 var(--text); text-transform: uppercase; letter-spacing: .06em; color: var(--blei); margin: 0 0 2px; padding-bottom: 8px; border-bottom: 1px solid var(--raster); display: flex; justify-content: space-between; align-items: center; gap: 12px; }
+h2 button { text-transform: none; letter-spacing: 0; }
+table.nachweis { width: 100%; border-collapse: collapse; font: 12px/1.2 var(--mono); font-variant-numeric: tabular-nums; }
+.nachweis th, .nachweis td { text-align: right; padding: 7px 0 7px 8px; border-bottom: 1px solid var(--raster); }
+.nachweis th { font: 500 11px/1.2 var(--text); }
+.nachweis th:first-child, .nachweis td:first-child { text-align: left; padding-left: 0; }
+.nachweis td:first-child::before { content: ""; display: inline-block; width: 7px; height: 7px; border-radius: 50%; margin-right: 7px; background: var(--ok); }
+.nachweis tr.fehl td:first-child::before { background: var(--fehl); }
+.nachweis td:last-child { font-weight: 600; color: var(--ok); } .nachweis tr.fehl td:last-child { color: var(--fehl); }
+.rechenweg { margin-top: 10px; } .rechenweg p { margin: 8px 0 0; color: var(--blei); font-size: 12px; }
+.rechenweg summary { cursor: pointer; font: 500 12px/1.2 var(--text); color: var(--akzent); }
+.zeile { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 2px 14px; padding: 10px 0; border-bottom: 1px solid var(--raster); }
+.zeile > :first-child { grid-column: 2; grid-row: 1; text-align: right; }
+.zeile > :last-child { grid-column: 1; grid-row: 1; }
+.zeile .soll { font: 600 15px/1.3 var(--mono); font-variant-numeric: tabular-nums; }
+.zeile .soll small { font: 500 11px/1 var(--text); color: var(--blei); margin-left: 4px; }
+.zeile > .label { font: 500 10.5px/1 var(--mono); border: 1px solid var(--kante); border-radius: 4px; padding: 3px 6px; align-self: start; }
+.zeile h3 { font: 600 13px/1.3 var(--text); margin: 0 0 2px; }
+.zeile p { margin: 0; font-size: 12px; color: var(--blei); }
+.zeile .quelle { margin-top: 4px; font-size: 11px; opacity: .85; }
+.zeile a, #grund a { color: var(--akzent); }
+.fuss { border-top: 1px solid var(--raster); padding-top: 12px; display: grid; gap: 6px; font-size: 11px; color: var(--blei); }
+.fuss p { margin: 0; }
+
+/* Was passt: je Geschosszahl eine Stufe mit Balken */
+.stufe { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 4px 12px; padding: 9px 10px; margin: 0 -10px; border-radius: 6px; transition: background .15s; }
+.stufe:hover, .stufe.aktiv { background: var(--akzent-flaeche); }
+.stufe strong { font: 600 13px/1.3 var(--text); }
+.stufe .we { font: 600 12px/1.4 var(--mono); }
+.stufe .balken { grid-column: 1 / -1; height: 3px; border-radius: 2px; background: var(--raster); overflow: hidden; }
+.stufe .balken i { display: block; height: 100%; background: var(--blei); transition: width .5s; }
+.stufe.beste .balken i { background: var(--akzent); } .stufe.beste .we { color: var(--akzent); }
+.stufe p { margin: 0; align-self: center; } .stufe button { align-self: center; }
+
+body.ziel::after { content: "DXF-Datei hier ablegen"; position: fixed; inset: 12px; border: 2px dashed var(--akzent); border-radius: 12px; background: var(--akzent-flaeche); display: grid; place-items: center; font: 600 20px/1 var(--text); color: var(--akzent); pointer-events: none; z-index: 9; }
+
+/* Einstieg über der Zeichenfläche: Adresse, Link zu einem Grundstück, Ladeablauf, Auswahl */
+#auftakt { position: absolute; inset: 0; z-index: 2; display: grid; align-items: safe center; justify-items: center; padding: 16px; overflow-y: auto; background: color-mix(in srgb, var(--flaeche) 80%, transparent); backdrop-filter: blur(4px); }
+#auftakt .karte { position: relative; width: min(100%, 470px); display: grid; gap: 12px; padding: 24px; background: var(--papier); border: 1px solid var(--raster); border-radius: 12px; box-shadow: var(--schatten); }
+#auftakt h1 { font: 600 23px/1.2 var(--text); letter-spacing: -.02em; margin: 0; text-wrap: balance; }
+#auftakt .karte > p { font-size: 13px; }
+#auftakt .suchzeile { max-width: none; margin: 0; flex: none; }
+#auftakt .suchzeile input { padding: 9px 10px; font-size: 15px; } #auftakt button.haupt { padding: 10px 14px; font-size: 13px; }
+#auftaktzu { position: absolute; top: 10px; right: 10px; border: 0; padding: 6px 8px; font-size: 14px; }
+#auftaktmeldung { color: var(--fehl); }
+#schritte { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; font-size: 13px; color: var(--blei); }
+#schritte li { display: flex; gap: 10px; align-items: center; }
+#schritte li::before { content: ""; width: 11px; height: 11px; border-radius: 50%; border: 1.5px solid var(--kante); flex: none; }
+#schritte li.laeuft { color: var(--tusche); } #schritte li.laeuft::before { border-color: var(--akzent); border-top-color: transparent; animation: dreh .7s linear infinite; }
+#schritte li.fertig::before { border-color: var(--ok); background: var(--ok); }
+@keyframes dreh { to { transform: rotate(360deg); } }
+#auftakt:not([data-zustand=leer]) #auftaktsuche, #auftakt:not([data-zustand=link]) #linkknopf, #auftakt:not([data-zustand=laedt]) #schritte, #auftakt:not([data-zustand=wahl]) #adresswahl,
+#auftakt[data-zustand=laedt] #auftaktwege, #auftakt[data-zustand=laedt] #auftakttext, #auftakt[data-zustand=laedt] .fein { display: none; }
+/* Auftritt nach dem Abruf: Umriss läuft um, Umgebung blendet ein */
+@keyframes ein { from { opacity: 0; } }
+#plan .spur { opacity: 0; }
+@keyframes spur { from { stroke-dashoffset: 1; opacity: 1; } 75% { opacity: 1; } to { stroke-dashoffset: 0; opacity: 0; } }
+#plan.auftritt .umfeld { animation: ein .9s .6s both; } #plan.auftritt .grenze { animation: ein .4s .9s both; } #plan.auftritt .spur { animation: spur 1.3s ease-out both; }
+@media (prefers-reduced-motion: reduce) { #plan.auftritt * { animation: none !important; } #schritte li.laeuft::before { animation: none; } }
+/* Grundstück und Überschlag */
+#grund { display: grid; gap: 10px; }
+#grund .name { font: 600 19px/1.25 var(--text); letter-spacing: -.01em; }
+.kacheln { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+.kacheln > div { border: 1px solid var(--raster); border-radius: 8px; padding: 10px 10px 9px; display: grid; gap: 4px; align-content: start; }
+.kacheln b { font: 600 21px/1.1 var(--mono); font-variant-numeric: tabular-nums; letter-spacing: -.03em; } .kacheln b small { font: 500 11px var(--text); color: var(--blei); margin-left: 3px; letter-spacing: 0; }
+.kacheln .akzent { border-color: var(--akzent); background: var(--akzent-flaeche); } .kacheln .akzent b { color: var(--akzent); }
+.nachfrage { display: grid; grid-template-columns: 1fr 1fr; gap: 8px 10px; }
+#grund { order: 0; } #passt { order: 1; } #lage { order: 2; } #rest { order: 3; } /* erst was passt, dann der Entwurf; mit Urteil rückt der Entwurf vor */
+#blatt[data-urteil] #lage { order: 1; } #blatt[data-urteil] #passt { order: 2; }
+[data-status=offen] .chip { color: var(--blei); background: var(--grund); } [data-status=offen] .urteil em { color: inherit; }
+dialog { max-width: min(92vw, 560px); border: 1px solid var(--raster); border-radius: 12px; padding: 20px 22px; background: var(--papier); color: var(--tusche); box-shadow: var(--schatten); }
+dialog::backdrop { background: rgba(0, 0, 0, .4); }
+dialog h2 { border: 0; padding: 0; margin: 14px 0 4px; } dialog h2:first-child { margin-top: 0; } dialog p { margin: 0 0 8px; font-size: 13px; color: var(--blei); }
+
+@media (max-width: 1100px) { /* schmal: Zeichenfläche oben, dann Ergebnis, dann Angaben */
+  .app { display: flex; flex-direction: column; height: auto; }
+  #buehne { order: 1; height: 62vh; min-height: 320px; } .statusleiste { order: 2; overflow-x: auto; } #blatt { order: 3; overflow: visible; border: 0; } #angaben { order: 4; overflow: visible; border: 0; border-top: 1px solid var(--raster); }
+  .tasten, .statusleiste .rechts { display: none; }
+}
+@media (max-width: 700px) { #ebenen, .tafel .trenner, #koord { display: none; } input, select { font-size: 16px; } .leiste .suchzeile { order: 2; flex-basis: 100%; max-width: none; } .leiste .knoepfe { order: 3; flex-wrap: nowrap; overflow-x: auto; max-width: 100%; } .kacheln b { font-size: 18px; } }
+@media print {
+  body { background: #fff; } .app { display: block; height: auto; } #angaben, .ecke, button, .suchzeile, #auftakt, dialog, #koord { display: none !important; }
+  #buehne { height: 115mm; border: 1px solid var(--raster); break-inside: avoid; } #plan [data-g], #plan [data-h], #plan [data-dreh] { display: none; }
+  #blatt { overflow: visible; border: 0; padding: 8mm 0 0; } .rechenweg > * { display: block; } .statusleiste { border: 0; padding: 4px 0; }
+}
+</style>
+</head>
+<body>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true"><defs>
+  <pattern id="schraffur" width="6" height="6" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><line x1="0" y1="0" x2="0" y2="6" stroke="var(--fehl)" stroke-width="1.2"/></pattern>
+</defs></svg>
+
+<div class="app">
+  <header class="leiste">
+    <div class="marke"><strong>Planungscheck</strong><span class="entwurf">Münster · Entwurf</span></div>
+    <div class="suchzeile" role="search"><input type="text" id="adresse" placeholder="Adresse in Münster" enterkeyhint="search" aria-label="Adresse in Münster suchen"><button type="button" id="adressknopf">Suchen</button></div>
+    <div class="plankopf" id="plankopf"></div>
+    <div class="knoepfe"><button type="button" id="beispiel">Beispiel</button><button type="button" id="leeren">Leeren</button><button type="button" id="zurueck" disabled>Rückgängig</button><span class="trenner"></span><button type="button" id="teilen" title="Link zu diesem Grundstück kopieren. Er enthält nur das Flurstück, nicht Ihre Planung.">Link kopieren</button><button type="button" id="dxfaus" title="Grundstück, Umgebung, Haus und Abstandsflächen als DXF für Ihr CAD sichern">DXF sichern</button><button type="button" id="drucken">Drucken · PDF</button></div>
+  </header>
+
+  <form id="angaben" autocomplete="off">
+    <details class="gruppe" name="gruppe" open><summary><span class="nr">1</span>Grundstück</summary><div class="inhalt">
+      <div class="reihe">
+        <label>Gemarkung<input type="text" data-p="kataster.gemarkung"></label>
+        <label>Flur<input type="number" min="0" step="1" data-p="kataster.flur"></label>
+        <label>Flurstück<input type="number" min="0" step="1" data-p="kataster.nummer"></label>
+        <div class="knoepfe breit"><button type="button" id="katasterknopf">Aus dem Kataster holen</button></div>
+        <p class="klein breit" id="katastermeldung" hidden></p>
+        <p class="klein breit">Die Suche oben findet das Grundstück über die Adresse, hier geht es mit der Flurstücksnummer. Beides holt Umriss, Nachbarn, Straßen und Gebäude aus dem offenen Kataster des Landes NRW und den Bebauungsplan von der Stadt. Dabei gehen nur Adresse oder Flurstück und die Lage des Grundstücks an Land und Stadt.</p>
+      </div>
+      <div class="knoepfe"><button type="button" id="dxfknopf">Lageplan aus CAD laden (DXF)</button><input type="file" id="dxf" accept=".dxf" hidden></div>
+      <p class="klein" id="dxfmeldung" hidden></p>
+      <div class="paar" id="dxfwahl" hidden><label>Grundstück ist<select id="dxfG"></select></label><label>Haus ist<select id="dxfH"></select></label></div>
+      <details><summary>Grenzpunkte als Zahlen</summary><div>
+        <div id="grundstueck"></div>
+        <button type="button" data-neu="grundstueck">Punkt hinzufügen</button>
+      </div></details>
+      <p class="klein">Maße in Metern. Die Datei wird auf diesem Gerät gelesen und nicht hochgeladen; Sie können sie auch einfach auf die Seite ziehen. Grenzpunkte lassen sich im Plan verschieben. Liegt an einer Kante eine Straße oder andere öffentliche Fläche, zählt der Abstand bis zu deren Mitte.</p>
+    </div></details>
+    <details class="gruppe" name="gruppe"><summary><span class="nr">2</span>Vorhaben</summary><div class="inhalt">
+      <div class="paar">
+        <label>Art<select data-p="vorhaben"><option value="">bitte wählen</option><option value="errichtung">Neubau</option><option value="aenderung">Änderung, Umbau</option></select></label>
+        <label>Lage des Grundstücks<select data-p="planungsrecht"><option value="">bitte wählen</option><option value="34">Innenbereich ohne Bebauungsplan</option><option value="bplan">Gebiet mit Bebauungsplan</option><option value="satzung">Satzungsgebiet</option><option value="35">Außenbereich</option></select></label>
+        <label>Gebäudeklasse<select data-p="gebaeudeklasse" data-zahl><option value="">bitte wählen</option><option>1</option><option>2</option><option>3</option><option>4</option><option>5</option></select></label>
+        <label>Oberirdische Geschosse<input type="number" min="1" step="1" data-p="oberirdische_geschosse"></label>
+      </div>
+      <label>Baugebiet<select data-p="baugebiet"><option value="">bitte wählen</option><option value="allgemein">Wohn-, Misch- oder sonstiges Gebiet</option><option value="gewerbe_industrie">Gewerbe- oder Industriegebiet</option><option value="kern">Kerngebiet</option></select></label>
+      <label class="haken"><input type="checkbox" data-p="denkmal">Denkmal oder nahe an einem Denkmal</label>
+      <label class="haken"><input type="checkbox" data-p="mischnutzung">Wohnen mit Laden oder Praxis im Haus</label>
+    </div></details>
+    <details class="gruppe" name="gruppe"><summary><span class="nr">3</span>Haus</summary><div class="inhalt">
+      <div class="paar">
+        <label>Wandhöhe<input type="number" min="0" step="0.01" data-p="wandhoehe"></label>
+        <label>Dachneigung °<input type="number" min="0" step="1" data-p="neigung"></label>
+        <label>Dachhöhe über der Wand<input type="number" min="0" step="0.01" data-p="dachhoehe"></label>
+      </div>
+      <div class="knoepfe"><button type="button" data-dreh="1">Links drehen</button><button type="button" data-dreh="-1">Rechts drehen</button></div>
+      <details open><summary>Wände: Ecken, Giebel, Gauben, Balkone</summary><div>
+        <div id="haus"></div>
+        <button type="button" data-neu="haus">Ecke hinzufügen</button>
+      </div></details>
+      <p class="klein">Flachdach: Neigung und Dachhöhe leer lassen. Eine Wandhöhe für das ganze Haus. Balkone und Erker je Wand zusammen, mittig und so hoch wie die Wand angenommen. Nicht geprüft: Baugrenzen und Baulinien aus dem Bebauungsplan, Abstandsflächen mehrerer Gebäude untereinander.</p>
+    </div></details>
+    <details class="gruppe" name="gruppe"><summary><span class="nr">4</span>Wohnungen</summary><div class="inhalt">
+      <div id="wohnungen"></div>
+      <button type="button" data-neu="wohnungen">Gruppe hinzufügen</button>
+      <div class="paar">
+        <label>davon Einraumwohnungen<input type="number" min="0" step="1" data-p="einraumwohnungen"></label>
+        <label>Bus und Bahn<select data-p="oepnv"><option value="">bitte wählen</option><option value="keiner">keine Haltestelle in 300 m</option><option value="bus_20">Bus alle 20 Minuten in 300 m</option><option value="bus_10">Bus alle 10 Minuten in 300 m</option><option value="altstadt">Altstadt, östlicher Bahnhofsbereich</option></select></label>
+      </div>
+    </div></details>
+    <details class="gruppe" name="gruppe"><summary><span class="nr">5</span>Bäume</summary><div class="inhalt">
+      <div id="baeume"></div>
+      <button type="button" data-neu="baeume">Baum hinzufügen</button>
+      <p class="klein">Stammumfang in 1 m Höhe. Mehrstämmige Bäume, Baumgruppen und im Bebauungsplan festgesetzte Bäume sind hier nicht erfasst.</p>
+    </div></details>
+    <details class="gruppe" name="gruppe"><summary><span class="nr">6</span>Feuerwehr</summary><div class="inhalt">
+      <label>Zweiter Rettungsweg<select data-p="zweiter_rettungsweg"><option value="">noch offen</option><option value="treppe">zweite Treppe</option><option value="feuerwehr">über Leitern der Feuerwehr</option></select></label>
+      <label class="haken"><input type="checkbox" data-p="rueckwaertig">Gebäude liegt hinter einem anderen, nicht an der Straße</label>
+      <div class="paar">
+        <label>Brüstung höchstes Anleiterfenster (m)<input type="number" min="0" step="0.01" data-p="bruestung_anleiterstelle"></label>
+        <label>Größte Entfernung zur Straße (m)<input type="number" min="0" step="0.1" data-p="entfernung_verkehrsflaeche"></label>
+      </div>
+    </div></details>
+    <details class="gruppe" name="gruppe"><summary><span class="nr">7</span>Annahmen für „Was passt“</summary><div class="inhalt">
+      <div class="paar">
+        <label>Höhe je Geschoss (m)<input type="number" min="2" step="0.05" data-p="annahmen.geschosshoehe"></label>
+        <label>Haustiefe höchstens (m)<input type="number" min="4" step="0.5" data-p="annahmen.haustiefe"></label>
+        <label>Wohnfläche in % der Geschossfläche<input type="number" min="1" max="100" step="1" data-p="annahmen.anteil"></label>
+        <label>Wohnungsgröße (m²)<input type="number" min="10" step="1" data-p="annahmen.wohnung"></label>
+      </div>
+      <p class="klein">Faustwerte für die Tabelle „Was passt auf dieses Grundstück“. Bitte an Ihr Vorhaben anpassen.</p>
+    </div></details>
+  </form>
+
+  <section id="buehne" aria-label="Zeichenfläche">
+    <svg id="plan" role="application" tabindex="0" aria-label="Lageplan: Haus auf dem Grundstück. Pfeiltasten verschieben, R dreht."></svg>
+    <div class="ecke ol"><div class="tafel">
+      <button type="button" data-dreh="1" title="Haus nach links drehen" aria-label="Haus nach links drehen">↺</button><button type="button" data-dreh="-1" title="Haus nach rechts drehen" aria-label="Haus nach rechts drehen">↻</button><span class="trenner"></span>
+      <div id="ebenen"><label><input type="checkbox" data-ebene="flaechen" checked>Abstandsflächen</label><label><input type="checkbox" data-ebene="masse" checked>Maße</label><label><input type="checkbox" data-ebene="umgebung" checked>Umgebung</label><label><input type="checkbox" data-ebene="raster" checked>Raster</label></div>
+    </div></div>
+    <div class="ecke or tasten"><span><kbd>R</kbd>drehen</span><span><kbd>← ↑ ↓ →</kbd>5 cm</span><span><kbd>Strg/⌘ Z</kbd>zurück</span></div>
+    <div id="auftakt" data-zustand="leer"><div class="karte">
+      <button type="button" id="auftaktzu" title="Zurück zum Plan" aria-label="Zurück zum Plan" hidden>✕</button>
+      <span class="label">Planungscheck · Münster</span>
+      <h1 id="auftakttitel">Was geht auf diesem Grundstück?</h1>
+      <p class="klein" id="auftakttext"></p>
+      <div class="suchzeile" id="auftaktsuche"><input type="text" id="adresse0" placeholder="Straße und Hausnummer in Münster" enterkeyhint="search" aria-label="Adresse in Münster"><button type="button" class="haupt" id="adressknopf0">Zeigen</button></div>
+      <button type="button" class="haupt" id="linkknopf">Grundstück zeigen</button>
+      <label id="adresswahl">Flurstück<select id="adresstreffer"></select></label>
+      <ol id="schritte"><li>Flurstück im Kataster</li><li>Nachbarn und Gebäude</li><li>Bebauungsplan</li><li>Was passt</li></ol>
+      <p class="klein" id="auftaktmeldung" hidden></p>
+      <div class="knoepfe" id="auftaktwege"><button type="button" class="link" id="startbeispiel">Beispiel ansehen</button><button type="button" class="link" id="startdxf">Lageplan aus CAD laden (DXF)</button><button type="button" class="link" id="starthand">Von Hand zeichnen</button></div>
+      <p class="klein fein">Rechnet auf Ihrem Gerät. Nur die Suche fragt das offene Kataster des Landes NRW und die Stadt Münster. Entwurf, ersetzt keine Prüfung.</p>
+    </div></div>
+  </section>
+
+  <main id="blatt">
+    <section id="grund" hidden></section>
+    <section class="befund" id="lage">
+      <div class="kopfzeile"><span class="label">Ihr Entwurf · Abstandsflächen</span><span class="chip" id="ampel"></span></div>
+      <h1 class="urteil" id="urteil" aria-live="polite"></h1>
+      <p class="lead" id="urteiltext"></p>
+      <div class="legende" id="legende"><span><i></i>Abstandsfläche</span><span><i class="jenseits"></i>jenseits der Grenze</span><span><i class="vorschlag"></i>Vorschlag</span></div>
+      <div class="wege" id="wege"></div>
+    </section>
+    <section id="passt">
+      <h2>Was passt auf dieses Grundstück <button type="button" id="spiel" title="Geschoss für Geschoss im Plan zeigen">▶ Abspielen</button></h2>
+      <div id="passtzeilen"></div>
+      <details class="rechenweg"><summary>Wie das gerechnet ist</summary><p id="passttext"></p></details>
+    </section>
+    <div id="rest" style="display:grid;gap:24px" aria-live="polite"></div>
+  </main>
+  <footer class="statusleiste" id="status"><span id="koord">x – · y –</span><span id="kennzahl" title="GRZ und GFZ überschlägig: nur dieses Haus, jedes oberirdische Geschoss voll gerechnet, ohne Nebenanlagen."></span><span class="rechts">Rechnet auf diesem Gerät</span><span>Bauordnung NRW, Fassung ab 01.09.2026</span><span>Satzungen der Stadt Münster</span><span><button type="button" class="link" id="rechtknopf">Datenschutz</button></span></footer>
+</div>
+<dialog id="recht">
+  <h2>Datenschutz</h2>
+  <p>Diese Seite rechnet in Ihrem Browser. Ihre Planung wird nicht an uns übertragen und nicht bei uns gespeichert.</p>
+  <h2>Was Ihr Browser speichert</h2>
+  <p>Ihre Angaben bleiben im Speicher Ihres Browsers auf diesem Gerät, damit sie beim nächsten Öffnen noch da sind. „Leeren“ löscht sie. Die Seite setzt keine Cookies und zählt keine Besuche.</p>
+  <h2>Was bei einer Suche übertragen wird</h2>
+  <p>Suchen Sie ein Grundstück, fragt Ihr Browser das Kataster des Landes Nordrhein-Westfalen und den Plan-Dienst der Stadt Münster. Dorthin gehen die Adresse oder das Flurstück, der Kartenausschnitt um das Grundstück und, wie bei jedem Abruf im Internet, Ihre IP-Adresse.</p>
+  <h2>Wo die Seite liegt</h2>
+  <p>Rufen Sie die Seite im Netz auf, liefert GitHub Pages sie aus und verarbeitet dabei Ihre IP-Adresse. Ein Link zu einem Grundstück trägt das Flurstück hinter dem Zeichen #; dieser Teil wird nicht an den Server übertragen.</p>
+  <form method="dialog"><button type="submit">Schließen</button></form>
+</dialog>
+
+<script id="kern">
+// Rechenkern. Entspricht src/bauantrag_check/planung.py; tests/test_planungscheck_html.py vergleicht beide.
+// Längen werden als ganze Millimeter gerechnet, damit Schwellen (ein Drittel, 0,4 H) exakt bleiben.
+const ABSCHLAG = { keiner: 0, bus_20: 10, bus_10: 15, altstadt: 20 };
+const FAKTOR = { allgemein: [8, "0,4"], gewerbe_industrie: [4, "0,2"], kern: [5, "0,25"] }; // Zwanzigstel
+const mm = (x) => Math.round(x * 1000);
+
+function de(x) { // zwei Nachkommastellen wie Python: genaue Hälften zur geraden Ziffer
+  const c = x * 100;
+  const y = Number.isInteger(x * 8) && Math.abs(c % 1) === 0.5 ? (2 * Math.round(c / 2)) / 100 : x;
+  return y.toFixed(2).replace(".", ",");
+}
+
+function viertel(w) { // Richtzahl je Wohnung in Viertel-Stellplätzen
+  if (w.gefoerdert) return 2;
+  if (w.wohnflaeche < 30) return 1;
+  if (w.wohnflaeche <= 50) return 2;
+  return w.wohnflaeche <= 150 ? 4 : 8;
+}
+
+function stellplaetzeKfz(wohnungen, oepnv) {
+  const q = wohnungen.reduce((s, w) => s + w.anzahl * viertel(w), 0);
+  return { ohne_abschlag: Math.ceil(q / 4), mit_abschlag: Math.ceil((q * (100 - ABSCHLAG[oepnv])) / 400) };
+}
+
+const anzahlWohnungen = (wohnungen) => wohnungen.reduce((s, w) => s + w.anzahl, 0);
+
+function fahrradabstellplaetze(wohnungen) {
+  if (anzahlWohnungen(wohnungen) <= 2) return null;
+  return Math.ceil(wohnungen.reduce((s, w) => s + w.anzahl * mm(w.wohnflaeche), 0) / 30000);
+}
+
+function spielplatz(wohnungen, einraumwohnungen, vorhaben) {
+  const gesamt = anzahlWohnungen(wohnungen);
+  if (vorhaben !== "errichtung" || gesamt <= 3) return null;
+  const flaeche = Math.max(25, 5 * (gesamt - einraumwohnungen));
+  const angefangen = Math.ceil(flaeche / 50);
+  return { flaeche, spielgeraete: angefangen, sitzgelegenheiten: 4 * angefangen };
+}
+
+function geschuetzt(baum, planungsrecht) {
+  if (!["34", "bplan", "satzung"].includes(String(planungsrecht))) return false;
+  const umfang = baum.stammumfang_cm || 0;
+  const grenze = String(baum.art || "").toLowerCase() === "eibe" ? 60 : 100;
+  return umfang >= grenze
+    || (!!baum.mehrstaemmig && umfang >= 80 && (baum.zweiter_stamm_cm || 0) >= 30)
+    || (!!baum.gruppe_ab_5 && umfang >= 80)
+    || !!baum.bplan_erhalt;
+}
+
+function zuschlag(wand) { // [Zuschlag in Drittel-Millimetern, Grund]
+  const neigung = wand.dach.neigung_grad, h = mm(wand.dach.hoehe);
+  if (wand.giebel) {
+    return neigung > 70 ? [3 * h, "Giebel bei Dachneigung über 70 Grad: volle Giebelhöhe"]
+                        : [h, "Giebel bei Dachneigung bis 70 Grad: ein Drittel der Giebelhöhe"];
+  }
+  let bester = [0, "kein Zuschlag"];
+  const kandidaten = [];
+  if (neigung > 70) kandidaten.push([3 * h, "Dach steiler als 70 Grad: volle Dachhöhe"]);
+  if (neigung > 45) kandidaten.push([h, "Dach steiler als 45 Grad: ein Drittel der Dachhöhe"]);
+  if (2 * mm(wand.dach.gauben_laenge || 0) > mm(wand.breite)) kandidaten.push([h, "Gauben länger als die halbe Wandbreite: ein Drittel der Dachhöhe"]);
+  for (const k of kandidaten) if (k[0] > bester[0]) bester = k;
+  return bester;
+}
+
+function vorbauPruefung(wand) {
+  const v = wand.vorbauten, breite = mm(wand.breite), summe = v.reduce((s, x) => s + mm(x.breite), 0), hinweise = [];
+  if (3 * summe > breite) {
+    hinweise.push(`${v.map((x) => x.name).join(" und ")} zusammen ${de(summe / 1000)} m breit, `
+      + `erlaubt sind höchstens ${de(breite / 3000)} m (ein Drittel von ${de(wand.breite)} m)`);
+  }
+  for (const x of v) {
+    if (mm(x.tiefe) > 1600) hinweise.push(`${x.name} treten ${de(x.tiefe)} m vor, erlaubt sind höchstens 1,60 m`);
+    if (mm(x.abstand_grenze) < 2000) hinweise.push(`${x.name} enden ${de(x.abstand_grenze)} m von der Grenze, nötig sind mindestens 2,00 m`);
+  }
+  return hinweise;
+}
+
+const pauschal = (gebaeudeklasse, oberirdischeGeschosse, wohngebaeude) =>
+  wohngebaeude && (gebaeudeklasse === 1 || gebaeudeklasse === 2) && oberirdischeGeschosse <= 3;
+
+function abstandsflaeche(wand, gebaeudeklasse, oberirdischeGeschosse, baugebiet, wohngebaeude = true) {
+  const [z3, grund] = zuschlag(wand);
+  const h3 = 3 * mm(wand.wandhoehe) + z3; // H in Drittel-Millimetern
+  let t60, regel;                         // Tiefe in Sechzigstel-Millimetern
+  if (pauschal(gebaeudeklasse, oberirdischeGeschosse, wohngebaeude)) {
+    t60 = 180000;
+    regel = "pauschal 3,00 m (Wohngebäude der Gebäudeklasse 1 oder 2 mit höchstens drei Geschossen)";
+  } else {
+    t60 = Math.max(FAKTOR[baugebiet][0] * h3, 180000);
+    regel = `${FAKTOR[baugebiet][1]} H, mindestens 3,00 m`;
+  }
+  const hinweise = vorbauPruefung(wand), ausserBetracht = hinweise.length === 0;
+  return {
+    hoehe_h: h3 / 3000, zuschlag: z3 / 3000, zuschlag_grund: grund, tiefe: t60 / 60000, tiefe_regel: regel,
+    abstand: wand.abstand_grenze, eingehalten: 60 * mm(wand.abstand_grenze) >= t60,
+    vorbauten_ausser_betracht: ausserBetracht, vorbau_hinweise: hinweise,
+    vorbau_abstand_eingehalten: ausserBetracht || !wand.vorbauten.length ? null
+      : wand.vorbauten.every((x) => 60 * mm(x.abstand_grenze) >= t60),
+  };
+}
+
+// Umkehrung von abstandsflaeche, auf volle Zentimeter zur sicheren Seite: kleinster Grenzabstand der Wand (Vorbauten wandern mit)
+// und größte Wandhöhe am jetzigen Standort (null, wenn pauschal 3 m gilt oder keine Höhe passt).
+function spielraum(wand, gebaeudeklasse, oberirdischeGeschosse, baugebiet, wohngebaeude = true) {
+  const z3 = zuschlag(wand)[0], p = pauschal(gebaeudeklasse, oberirdischeGeschosse, wohngebaeude), f = FAKTOR[baugebiet][0];
+  const t60 = p ? 180000 : Math.max(f * (3 * mm(wand.wandhoehe) + z3), 180000);
+  const abstand = mm(wand.abstand_grenze), v = wand.vorbauten;
+  const vor = Math.max(0, ...v.map((x) => abstand - mm(x.abstand_grenze)));
+  const formPasst = vorbauPruefung({ ...wand, vorbauten: v.map((x) => ({ ...x, abstand_grenze: 2 })) }).length === 0;
+  const noetig60 = !v.length ? t60 : formPasst ? Math.max(t60, 60 * (2000 + vor)) : t60 + 60 * vor;
+  const grenze = vorbauPruefung(wand).length === 0 ? abstand : abstand - vor;
+  const hoechste = !p && grenze >= 3000 && 60 * grenze >= f * z3 ? Math.floor((60 * grenze - f * z3) / (30 * f)) / 100 : null;
+  return { mindestabstand: Math.ceil(noetig60 / 600) / 100, hoechste_wandhoehe: hoechste, pauschal: p };
+}
+
+function feuerwehr(zweiterRettungsweg, bruestungM, rueckwaertig, entfernungM) {
+  if (!(rueckwaertig === true || zweiterRettungsweg === "feuerwehr")) {
+    if (zweiterRettungsweg === "treppe" && rueckwaertig === false) {
+      return { betroffen: false, zugang: null, aufstellflaechen: false, geraetehinweis: false, zufahrten_vor_hinter: false,
+               saetze: ["Zweiter Rettungsweg über Treppe: keine besondere Zufahrt für die Feuerwehr nötig."] };
+    }
+    return null;
+  }
+  if (bruestungM == null || entfernungM == null) return null;
+  const hoch = bruestungM > 8;
+  const saetze = hoch
+    ? ["Brüstung des höchsten Anleiterfensters mehr als 8 m über Gelände: Statt eines Zugangs ist eine Zu- oder "
+       + "Durchfahrt von der öffentlichen Verkehrsfläche zu schaffen. Aufstell- und Bewegungsflächen für "
+       + "Hubrettungsfahrzeuge vorsehen.",
+       "Bauen darf man so nur, wenn die Feuerwehr die nötigen Geräte, etwa Hubrettungsfahrzeuge, hat: "
+       + "mit der Feuerwehr Münster klären."]
+    : ["Brüstung des höchsten Anleiterfensters höchstens 8 m über Gelände: geradliniger Zu- oder Durchgang "
+       + "von der öffentlichen Verkehrsfläche zum Gebäude schaffen."];
+  if (entfernungM > 50) {
+    saetze.push("Das Gebäude liegt zum Teil mehr als 50 m von der öffentlichen Verkehrsfläche entfernt: zusätzlich "
+      + "Zufahrten zu den Flächen vor und hinter dem Gebäude, soweit für den Einsatz erforderlich.");
+  }
+  saetze.push("Liegen die Flächen nicht auf dem Grundstück, müssen sie rechtlich gesichert sein (zum Beispiel Baulast). "
+    + "Flächen befestigt, tragfähig, gekennzeichnet und frei halten.");
+  return { betroffen: true, zugang: hoch ? "zufahrt" : "zugang", aufstellflaechen: hoch, geraetehinweis: hoch,
+           zufahrten_vor_hinter: entfernungM > 50, saetze };
+}
+
+// Geometrie des Lageplans, Zeile für Zeile wie lageplan.py: Vielecke als Listen von [x, y] in Metern.
+const nachbarn = (v) => v.map((a, i) => [a, v[(i + 1) % v.length]]);
+const flaeche = (v) => nachbarn(v).reduce((s, [a, b]) => s + (a[0] * b[1] - b[0] * a[1]), 0) / 2; // positiv gegen den Uhrzeigersinn
+const seite = (a, b, c) => (b[0] - a[0]) * (c[1] - a[1]) - (b[1] - a[1]) * (c[0] - a[0]);
+
+function innen(punkt, vieleck) { // der Rand zählt als innen
+  let drin = false;
+  for (const [a, b] of nachbarn(vieleck)) {
+    if (Math.abs(seite(a, b, punkt)) < 1e-7 && Math.min(a[0], b[0]) - 1e-7 <= punkt[0] && punkt[0] <= Math.max(a[0], b[0]) + 1e-7
+      && Math.min(a[1], b[1]) - 1e-7 <= punkt[1] && punkt[1] <= Math.max(a[1], b[1]) + 1e-7) return true;
+    if ((a[1] > punkt[1]) !== (b[1] > punkt[1]) && punkt[0] < a[0] + (punkt[1] - a[1]) * (b[0] - a[0]) / (b[1] - a[1])) drin = !drin;
+  }
+  return drin;
+}
+
+function kreuzen(eins, zwei) {
+  for (const [a, b] of nachbarn(eins)) for (const [c, d] of nachbarn(zwei)) {
+    if (seite(a, b, c) * seite(a, b, d) < -1e-12 && seite(c, d, a) * seite(c, d, b) < -1e-12) return true;
+  }
+  return false;
+}
+const liegtAuf = (haus, grundstueck) => haus.every((p) => innen(p, grundstueck)) && !kreuzen(haus, grundstueck);
+
+function mitStrassen(grundstueck, breiten) { // Rand für Abstandsflächen: an Kanten mit Straße um die halbe Breite nach außen
+  const f = flaeche(grundstueck) > 0 ? 1 : -1, aus = [];
+  nachbarn(grundstueck).forEach(([a, b], i) => {
+    const w = (breiten[i] || 0) / 2;
+    aus.push(a);
+    if (w > 0) {
+      const dx = b[0] - a[0], dy = b[1] - a[1], laenge = Math.sqrt(dx * dx + dy * dy), nx = f * dy / laenge * w, ny = -f * dx / laenge * w;
+      aus.push([a[0] + nx, a[1] + ny], [b[0] + nx, b[1] + ny]);
+    }
+  });
+  return aus;
+}
+
+// Kleinster Abstand der Wand p–q zum Rand, senkrecht zur Wand nach außen, auf Millimeter abgerundet; null: kein Rand davor.
+// f: 1, wenn das Haus gegen den Uhrzeigersinn umlaufen wird, sonst -1.
+function freiraum(p, q, f, rand) {
+  const dx = q[0] - p[0], dy = q[1] - p[1], laenge = Math.sqrt(dx * dx + dy * dy), ux = dx / laenge, uy = dy / laenge, nx = f * uy, ny = -f * ux;
+  let best = null;
+  for (const [a, b] of nachbarn(rand)) {
+    let s1 = (a[0] - p[0]) * ux + (a[1] - p[1]) * uy, t1 = (a[0] - p[0]) * nx + (a[1] - p[1]) * ny;
+    let s2 = (b[0] - p[0]) * ux + (b[1] - p[1]) * uy, t2 = (b[0] - p[0]) * nx + (b[1] - p[1]) * ny;
+    if (s1 > s2) [s1, t1, s2, t2] = [s2, t2, s1, t1];
+    if (s2 < 0 || s1 > laenge) continue;
+    if (s1 < 0) { t1 = t1 + (t2 - t1) * (0 - s1) / (s2 - s1); s1 = 0; }
+    if (s2 > laenge) { t2 = t1 + (t2 - t1) * (laenge - s1) / (s2 - s1); s2 = laenge; }
+    if (Math.max(t1, t2) < -1e-9) continue;
+    const t = Math.max(0, Math.min(t1, t2));
+    if (best === null || t < best) best = t;
+  }
+  return best === null ? null : Math.floor(best * 1000 + 1e-6) / 1000;
+}
+
+// Ältere DXF-Dateien sind nicht in UTF-8 geschrieben, sondern in der Windows-Zeichentabelle: sonst gehen Umlaute in Layernamen kaputt.
+function dxfText(bytes) {
+  try { return new TextDecoder("utf-8", { fatal: true }).decode(bytes); } catch { return new TextDecoder("windows-1252").decode(bytes); }
+}
+
+// Einzelne Linien zu geschlossenen Zügen verbinden: nur wo an jedem Punkt genau zwei Linien enden (auf den Millimeter).
+function schliesse(strecken) {
+  const ort = (p) => `${Math.round(p[0] * 1000)},${Math.round(p[1] * 1000)}`, an = new Map(), benutzt = new Set(), zuege = [];
+  strecken.forEach((s, i) => s.forEach((p) => an.set(ort(p), [...(an.get(ort(p)) || []), i])));
+  strecken.forEach((s, start) => {
+    if (benutzt.has(start)) return;
+    const punkte = [s[0]];
+    for (let i = start, ende = s[1]; ;) {
+      benutzt.add(i);
+      if (ort(ende) === ort(punkte[0])) { if (punkte.length >= 3) zuege.push(punkte); return; }
+      const weiter = an.get(ort(ende)).filter((j) => !benutzt.has(j));
+      if (an.get(ort(ende)).length !== 2 || weiter.length !== 1) return;
+      punkte.push(ende); i = weiter[0];
+      ende = ort(strecken[i][0]) === ort(ende) ? strecken[i][1] : strecken[i][0];
+    }
+  });
+  return zuege;
+}
+
+// Geschlossene Linienzüge aus einer DXF-Datei (Text): [{ layer, punkte }]. Polylinien und Ketten einzelner Linien; Bögen als gerade Stücke.
+function dxfPolygone(text) {
+  const zeilen = text.split(/\r?\n/), aus = [];
+  let sektion = "", erwarteSektion = false, zug = null, imPunkt = false, linie = null;
+  const linien = new Map(); // Layer -> Strecken
+  const ende = () => {
+    if (linie) linien.set(linie.layer, [...(linien.get(linie.layer) || []), [linie.p, linie.q]]);
+    linie = null;
+    if (zug) {
+      const p = zug.punkte, n = p.length;
+      const zu = n > 2 && Math.abs(p[0][0] - p[n - 1][0]) < 1e-9 && Math.abs(p[0][1] - p[n - 1][1]) < 1e-9;
+      if (zu) p.pop();
+      if (p.length >= 3 && (zug.zu || zu)) aus.push({ layer: zug.layer, punkte: p });
+    }
+    zug = null; imPunkt = false;
+  };
+  for (let i = 0; i + 1 < zeilen.length; i += 2) {
+    const code = parseInt(zeilen[i], 10), wert = zeilen[i + 1].trim();
+    if (code === 0) {
+      if (wert === "VERTEX" && zug && zug.alt) { imPunkt = true; continue; }
+      ende();
+      erwarteSektion = wert === "SECTION";
+      if (sektion === "ENTITIES" && (wert === "LWPOLYLINE" || wert === "POLYLINE")) zug = { layer: "0", punkte: [], zu: false, alt: wert === "POLYLINE" };
+      if (sektion === "ENTITIES" && wert === "LINE") linie = { layer: "0", p: [0, 0], q: [0, 0] };
+    } else if (code === 2 && erwarteSektion) { sektion = wert; erwarteSektion = false;
+    } else if (linie) {
+      if (code === 8) linie.layer = wert;
+      else if (code === 10 || code === 20) linie.p[code / 10 - 1] = parseFloat(wert);
+      else if (code === 11 || code === 21) linie.q[(code - 1) / 10 - 1] = parseFloat(wert);
+    } else if (zug) {
+      const punkt = !zug.alt || imPunkt;
+      if (code === 8 && !imPunkt) zug.layer = wert;
+      else if (code === 70 && !imPunkt) zug.zu = (parseInt(wert, 10) & 1) === 1;
+      else if (code === 10 && punkt) zug.punkte.push([parseFloat(wert), 0]);
+      else if (code === 20 && punkt && zug.punkte.length) zug.punkte[zug.punkte.length - 1][1] = parseFloat(wert);
+    }
+  }
+  ende();
+  for (const [layer, strecken] of linien) for (const punkte of schliesse(strecken)) aus.push({ layer, punkte });
+  return aus;
+}
+
+const istZahl = (...x) => x.every((v) => typeof v === "number" && !isNaN(v));
+const rund = (x) => Math.round(x * 1000) / 1000; // Millimeter, gegen Rundungsreste
+const punkte = (liste) => liste.map((p) => [p.x, p.y]);
+const mittel = (v) => [v.reduce((s, p) => s + p[0], 0) / v.length, v.reduce((s, p) => s + p[1], 0) / v.length];
+const lang = (a, b) => Math.sqrt((b[0] - a[0]) ** 2 + (b[1] - a[1]) ** 2);
+
+// Offenes Kataster des Landes NRW (ALKIS vereinfacht, Datenlizenz Deutschland Zero). Koordinaten in Metern (ETRS89/UTM32).
+const KATASTER = "https://www.wfs.nrw.de/geobasis/wfs_nw_alkis_vereinfacht", KATASTER_NS = "http://repository.gdi-de.org/schemas/adv/produkt/alkis-vereinfacht/2.0";
+function katasterUrl(typ, wo) { // wo: { gemarkung, flur, nummer } für ein Flurstück oder [x1, y1, x2, y2] für alles in einem Rechteck
+  const p = new URLSearchParams({ SERVICE: "WFS", VERSION: "2.0.0", REQUEST: "GetFeature", TYPENAMES: `ave:${typ}` });
+  if (Array.isArray(wo)) p.set("BBOX", `${wo.join(",")},urn:ogc:def:crs:EPSG::25832`);
+  else {
+    const literal = (wert) => String(wert).replace(/[<>&*?!]/g, "");
+    const gleich = (feld, wert) => `<fes:PropertyIsEqualTo><fes:ValueReference>ave:${feld}</fes:ValueReference><fes:Literal>${literal(wert)}</fes:Literal></fes:PropertyIsEqualTo>`;
+    const zwei = "adresse" in wo // Lagebezeichnung enthält Straße und Hausnummer; der Buchstabe hinter der Nummer wird erst danach geprüft
+      ? gleich("gemeinde", wo.gemeinde) + `<fes:PropertyIsLike wildCard="*" singleChar="?" escapeChar="!" matchCase="false"><fes:ValueReference>ave:lagebeztxt</fes:ValueReference><fes:Literal>*${literal(adressTeile(wo.adresse).join(" ").replace(/[a-z]$/, "").trim())}*</fes:Literal></fes:PropertyIsLike>`
+      : gleich("gemarkung", wo.gemarkung) + gleich("flur", wo.flur) + gleich("flstnrzae", wo.nummer);
+    const bedingung = "kennzeichen" in wo ? gleich("flstkennz", wo.kennzeichen) : `<fes:And>${zwei}</fes:And>`; // das Kennzeichen ist eindeutig und kommt am schnellsten zurück
+    if ("adresse" in wo) p.set("COUNT", "60");
+    p.set("NAMESPACES", `xmlns(ave,${KATASTER_NS})`);
+    p.set("FILTER", `<fes:Filter xmlns:fes="http://www.opengis.net/fes/2.0">${bedingung}</fes:Filter>`);
+  }
+  return `${KATASTER}?${p}`;
+}
+
+// Link zu einem Flurstück: "#05500700500593______/Hölderlinweg 5". Was hinter der Raute steht, geht nicht an den Server der Seite.
+const linkSchreibe = (kennzeichen, ort) => (/^\d{14}[\d_]{6}$/.test(kennzeichen || "") ? `#${kennzeichen}${ort ? "/" + encodeURIComponent(ort) : ""}` : "");
+function linkLies(raute) {
+  const m = /^#(\d{14}[\d_]{6})(?:\/(.*))?$/.exec(raute || "");
+  if (!m) return null;
+  let ort = "";
+  try { ort = decodeURIComponent(m[2] || "").slice(0, 80); } catch { /* kaputte Kodierung: ohne Ort */ }
+  return { kennzeichen: m[1], ort };
+}
+
+function adressTeile(s) { // "Hölderlinweg 51a" -> ["hölderlinweg", "51a"]; ohne Hausnummer bleibt die zweite Stelle leer
+  const t = s.toLowerCase().replace(/strasse/g, "straße").replace(/str\.\s*/g, "straße ").replace(/\s+/g, " ").trim(), m = t.match(/^(.*?)\s*(\d+)\s*([a-z]?)$/);
+  return m ? [m[1], m[2] + m[3]] : [t, ""];
+}
+
+function adressTreffer(eingabe, objekte) { // genau: Straße und Hausnummer stehen so in der Lagebezeichnung, etwa "Hölderlinweg 51, 51 a"
+  const [strasse, nr] = adressTeile(eingabe);
+  const passt = (o) => !!nr && (o.felder.lagebeztxt || "").split(";").some((teil) => {
+    const m = teil.trim().toLowerCase().match(/^(.*?)\s*(\d.*)$/);
+    return !!m && m[1] === strasse && m[2].split(",").map((x) => x.replace(/\s/g, "")).includes(nr);
+  });
+  const alle = [...objekte].sort((x, y) => (x.felder.lagebeztxt || "").localeCompare(y.felder.lagebeztxt || "", "de", { numeric: true }));
+  return { genau: alle.filter(passt), alle };
+}
+
+function katasterLies(gml) { // je Objekt: einfache Felder und der äußere Ring der größten Teilfläche
+  return gml.split("<wfs:member>").slice(1).map((m) => {
+    const felder = Object.fromEntries([...m.matchAll(/<(?:ms:)?([a-z]+)>([^<]*)<\/(?:ms:)?\1>/g)].map((x) => [x[1], x[2].replace(/&amp;/g, "&")]));
+    const ringe = [...m.matchAll(/<gml:exterior>[\s\S]*?<gml:posList[^>]*>([^<]*)</g)].map((x) => {
+      const z = x[1].trim().split(/\s+/).map(Number), ring = [];
+      for (let i = 0; i + 1 < z.length; i += 2) ring.push([z[i], z[i + 1]]);
+      ring.pop(); // der letzte Punkt wiederholt den ersten
+      return ring;
+    }).filter((r) => r.length >= 3);
+    return { felder, ring: ringe.sort((x, y) => Math.abs(flaeche(y)) - Math.abs(flaeche(x)))[0] };
+  }).filter((o) => o.ring);
+}
+
+// Bebauungspläne der Stadt Münster: nur Umrisse und Stammdaten (Datenlizenz Deutschland Namensnennung 2.0).
+const BPLAN = "https://geo.stadt-muenster.de/mapserv/bplan_serv";
+const bplanUrl = (ebene, kasten) => `${BPLAN}?${new URLSearchParams({ SERVICE: "WFS", VERSION: "2.0.0", REQUEST: "GetFeature", TYPENAME: `ms:${ebene}`, BBOX: `${kasten.join(",")},urn:ogc:def:crs:EPSG::25832` })}`;
+
+// Pläne, in deren Umriss das Grundstück liegt: ganz (alle Grenzpunkte) oder zum Teil. plaene: Ergebnis von katasterLies.
+function bplanTreffer(grund, plaene) {
+  return plaene.map((o) => ({ o, drin: grund.filter((p) => innen(p, o.ring)).length })).filter((x) => x.drin > 0).map(({ o, drin }) => ({
+    nr: o.felder.plannr || "", name: o.felder.name || "", datum: o.felder.datum || "", ganz: drin === grund.length,
+    url: (o.felder.scanurl || "").startsWith("https://geo.stadt-muenster.de/") ? o.felder.scanurl : "" }));
+}
+
+// Je Grundstückskante die Breite der Verkehrsfläche davor, auf Zentimeter abgerundet; null, wenn dort keine liegt.
+// umliegende: [{ ring, nutzung }]. Gemessen wird quer über das eine Nachbarflurstück an der Kantenmitte: eher zu schmal als zu breit.
+function strassenVorschlag(grund, umliegende) {
+  const f = flaeche(grund) > 0 ? 1 : -1;
+  return nachbarn(grund).map(([a, b]) => {
+    const l = Math.sqrt((b[0] - a[0]) ** 2 + (b[1] - a[1]) ** 2), n = [f * (b[1] - a[1]) / l, -f * (b[0] - a[0]) / l];
+    const bei = (t) => [a[0] + (b[0] - a[0]) * t + n[0] * 0.2, a[1] + (b[1] - a[1]) * t + n[1] * 0.2]; // 20 cm vor der Kante
+    const nb = umliegende.find((o) => innen(bei(0.5), o.ring));
+    if (!nb || !/^(Straßenverkehr|Weg|Platz)(;[\d.]*)?$/.test(nb.nutzung)) return null;
+    const quer = freiraum(bei(1 / 3), bei(2 / 3), f, nb.ring);
+    return quer === null ? null : Math.floor((quer + 0.2) * 100 + 1e-6) / 100;
+  });
+}
+
+// Erstes Haus für ein Grundstück g: das größte Quadrat bis 10 m, parallel zu einer Grenze, das rundum 3 m Abstand zum Rand hält
+// (rand: Grundstück samt halber Straßen). Unter den gleich großen das mit der meisten Luft. Passt keines: klein in den Schwerpunkt.
+function starthaus(g, rand = g) {
+  let A = 0, cx = 0, cy = 0;
+  for (const [p, q] of nachbarn(g)) { const k = p[0] * q[1] - q[0] * p[1]; A += k; cx += (p[0] + q[0]) * k; cy += (p[1] + q[1]) * k; }
+  const kanten = nachbarn(g).sort((x, y) => lang(...y) - lang(...x)).slice(0, 4).map(([p, q]) => [(q[0] - p[0]) / lang(p, q), (q[1] - p[1]) / lang(p, q)]);
+  const quadrat = (c, u, h) => [[-1, -1], [1, -1], [1, 1], [-1, 1]].map(([i, j]) => [rund(c[0] + (i * u[0] - j * u[1]) * h), rund(c[1] + (i * u[1] + j * u[0]) * h)]);
+  const xs = g.map((p) => p[0]), ys = g.map((p) => p[1]), x0 = Math.min(...xs), y0 = Math.min(...ys), sx = (Math.max(...xs) - x0) / 24, sy = (Math.max(...ys) - y0) / 24;
+  for (const h of [5, 4.5, 4, 3.5, 3, 2.5, 2]) {
+    let best = null;
+    for (const u of kanten) for (let i = 1; i < 24; i++) for (let j = 1; j < 24; j++) {
+      const v = quadrat([x0 + i * sx, y0 + j * sy], u, h);
+      if (!v.every((p) => innen(p, g))) continue;
+      const f = flaeche(v) > 0 ? 1 : -1, luft = Math.min(...nachbarn(v).map(([p, q]) => freiraum(p, q, f, rand) ?? 0));
+      if (luft >= 3 && (!best || luft > best.luft)) best = { v, luft };
+    }
+    if (best) return best.v;
+  }
+  return quadrat([cx / (3 * A), cy / (3 * A)], kanten[0], Math.min(5, Math.max(2, Math.sqrt(Math.abs(A) / 2) / 6)));
+}
+
+// Vom Formular zur Rechnung: a sind die Angaben. null ohne Grundstück; fehlt nennt, was fürs Urteil noch fehlt (dann ohne Wände).
+// Sonst je Wand Ergebnis und Spielraum. d: Haus probeweise verschoben
+function lage(a, d = [0, 0]) {
+  const G = a.grundstueck, H = a.haus, kurz = (v) => v.some((p, i) => lang(p, v[(i + 1) % v.length]) < 0.01) || Math.abs(flaeche(v)) < 0.01;
+  if (G.length < 3 || !G.every((p) => istZahl(p.x, p.y)) || kurz(punkte(G))) return null;
+  const g = punkte(G), hausDa = H.length >= 3 && H.every((p) => istZahl(p.x, p.y)) && !kurz(punkte(H)), h = hausDa ? punkte(H).map(([x, y]) => [x + d[0], y + d[1]]) : [];
+  const rand = mitStrassen(g, G.map((p) => p.strasse)), f = flaeche(h) > 0 ? 1 : -1, fg = flaeche(g) > 0 ? 1 : -1, bau = [a.gebaeudeklasse, a.oberirdische_geschosse, a.baugebiet];
+  const strassen = G.map((p, i) => { const q = g[(i + 1) % g.length], l = lang(g[i], q); // Kante, Außenrichtung, Breite
+    return p.strasse > 0 ? { a: g[i], b: q, n: [fg * (q[1] - g[i][1]) / l, -fg * (q[0] - g[i][0]) / l], w: p.strasse } : null; }).filter(Boolean);
+  const fehlt = [[!hausDa, "Haus"], [!istZahl(a.wandhoehe), "Wandhöhe"], [a.gebaeudeklasse == null, "Gebäudeklasse"], [a.oberirdische_geschosse == null, "Geschosse"], [!a.baugebiet, "Baugebiet"]].filter((x) => x[0]).map((x) => x[1]);
+  if (fehlt.length) return { g, h, rand, strassen, waende: [], auf: !hausDa || liegtAuf(h, g), fehlt }; // Plan ja, Urteil noch nicht
+  const waende = H.map((q, i) => {
+    const p = h[i], e = h[(i + 1) % h.length], l = lang(p, e), u = [(e[0] - p[0]) / l, (e[1] - p[1]) / l], n = [f * u[1], -f * u[0]];
+    const vor = (s, t) => [p[0] + u[0] * s + n[0] * t, p[1] + u[1] * s + n[1] * t]; // Punkt vor der Wand: s entlang, t nach außen
+    const frei = freiraum(p, e, f, rand) ?? 0, mitVorbau = q.vbreite > 0 && istZahl(q.vtiefe) && q.vtiefe > 0;
+    const l0 = mitVorbau ? Math.max(0, (l - q.vbreite) / 2) : 0, l1 = mitVorbau ? Math.min(l, l0 + q.vbreite) : 0;
+    const w = { name: String(i + 1), breite: rund(l), wandhoehe: a.wandhoehe, abstand_grenze: frei, giebel: !!q.giebel,
+      dach: { neigung_grad: a.neigung || 0, hoehe: a.dachhoehe || 0, gauben_laenge: q.gauben || 0 },
+      vorbauten: mitVorbau ? [{ name: q.vname || "Vorbauten", breite: q.vbreite, tiefe: q.vtiefe,
+        abstand_grenze: frei >= q.vtiefe ? freiraum(vor(l0, q.vtiefe), vor(l1, q.vtiefe), f, rand) ?? 0 : rund(frei - q.vtiefe) }] : [] };
+    const r = abstandsflaeche(w, ...bau), sp = spielraum(w, ...bau), ok = r.eingehalten && r.vorbau_abstand_eingehalten !== false;
+    const luft = rund(frei - sp.mindestabstand); // der Kern entscheidet; die Luft ist auf Zentimeter zur sicheren Seite gerechnet
+    return { nr: i + 1, p, e, l, n, vor, l0, l1, w, r, sp, frei, ok, luft: ok ? Math.max(0, luft) : Math.min(-0.01, luft) };
+  });
+  return { g, h, rand, strassen, waende, auf: liegtAuf(h, g), fehlt: [] };
+}
+
+function loesung(a) { // kleinste gefundene Verschiebung, mit der alle Wände passen: immer die schlechteste Wand von der Grenze wegrücken
+  let d = [0, 0];
+  for (let k = 0; k < 60; k++) {
+    const L = lage(a, d);
+    if (!L || !L.auf || L.fehlt.length) return null;
+    const s = L.waende.filter((w) => !w.ok).sort((x, y) => x.luft - y.luft)[0];
+    if (!s) return k ? d : null;
+    d = [rund(d[0] + s.n[0] * (s.luft - 0.002)), rund(d[1] + s.n[1] * (s.luft - 0.002))];
+  }
+  // Der kurze Weg führt nicht hin: das Grundstück im Raster absuchen und den nächsten passenden Standort nehmen
+  const g = punkte(a.grundstueck), h = punkte(a.haus), xs = g.map((p) => p[0]), ys = g.map((p) => p[1]), m = mittel(h);
+  const x0 = Math.min(...xs), y0 = Math.min(...ys), sx = (Math.max(...xs) - x0) / 20, sy = (Math.max(...ys) - y0) / 20;
+  let best = null;
+  for (let i = 1; i < 20; i++) for (let j = 1; j < 20; j++) {
+    const v = [rund(x0 + i * sx - m[0]), rund(y0 + j * sy - m[1])], weit = v[0] ** 2 + v[1] ** 2;
+    if (best && weit >= best[0] ** 2 + best[1] ** 2) continue;
+    if (!h.every((p) => innen([p[0] + v[0], p[1] + v[1]], g))) continue;
+    const L = lage(a, v);
+    if (L.auf && L.waende.every((w) => w.ok)) best = v;
+  }
+  return best;
+}
+
+// --- Potenzial: was auf das Grundstück passt, je Geschosszahl ---
+function dxfSchreibe(L, ursprung = [0, 0], umgebung = { flurstuecke: [], gebaeude: [] }) { // Grundstück, Umgebung, Haus und Abstandsflächen als DXF (R12, Meter); ursprung schiebt zurück ins Netz des Katasters
+  const z = (v) => (Math.round(v * 1000) / 1000).toFixed(3), xy = ([x, y], n = 0) => `${10 + n}\n${z(x + ursprung[0])}\n${20 + n}\n${z(y + ursprung[1])}\n`;
+  const zug = (ebene, v) => `0\nPOLYLINE\n8\n${ebene}\n66\n1\n70\n1\n` + v.map((q) => `0\nVERTEX\n8\n${ebene}\n${xy(q)}`).join("") + `0\nSEQEND\n8\n${ebene}\n`;
+  const EBENEN = { PC_GRUNDSTUECK: 7, PC_GEBAEUDE: 7, PC_VORBAU: 7, PC_ABSTANDSFLAECHE: 5, PC_STRASSENMITTE: 8, PC_TEXT: 5, PC_NACHBAR_FLURSTUECKE: 8, PC_NACHBAR_GEBAEUDE: 8 }; // Name: Farbnummer
+  let t = zug("PC_GRUNDSTUECK", L.g) + (L.h.length ? zug("PC_GEBAEUDE", L.h) : "")
+    + umgebung.flurstuecke.map((v) => zug("PC_NACHBAR_FLURSTUECKE", v)).join("") + umgebung.gebaeude.map((v) => zug("PC_NACHBAR_GEBAEUDE", v)).join("");
+  for (const s of L.strassen) { const m = (q) => [q[0] + s.n[0] * s.w / 2, q[1] + s.n[1] * s.w / 2];
+    t += `0\nLINE\n8\nPC_STRASSENMITTE\n${xy(m(s.a))}${xy(m(s.b), 1)}`; }
+  for (const W of L.waende) {
+    const v = W.w.vorbauten[0], T = W.r.tiefe, viereck = (s0, s1, t0, t1) => [W.vor(s0, t0), W.vor(s1, t0), W.vor(s1, t1), W.vor(s0, t1)];
+    t += zug("PC_ABSTANDSFLAECHE", viereck(0, W.l, 0, T)) + `0\nTEXT\n8\nPC_TEXT\n${xy(W.vor(W.l / 2, T / 2))}40\n0.5\n1\nWand ${W.nr}: T = ${de(T)} m\n`;
+    if (v) t += zug("PC_VORBAU", viereck(W.l0, W.l1, 0, v.tiefe));
+    if (v && !W.r.vorbauten_ausser_betracht) t += zug("PC_ABSTANDSFLAECHE", viereck(W.l0, W.l1, v.tiefe, v.tiefe + T));
+  }
+  return `0\nSECTION\n2\nHEADER\n9\n$ACADVER\n1\nAC1009\n0\nENDSEC\n0\nSECTION\n2\nTABLES\n0\nTABLE\n2\nLAYER\n70\n${Object.keys(EBENEN).length}\n`
+    + Object.entries(EBENEN).map(([name, farbe]) => `0\nLAYER\n2\n${name}\n70\n0\n62\n${farbe}\n6\nCONTINUOUS\n`).join("")
+    + `0\nENDTAB\n0\nENDSEC\n0\nSECTION\n2\nENTITIES\n${t}0\nENDSEC\n0\nEOF\n`;
+}
+
+function abstandStrecke(p, a, b) {
+  const dx = b[0] - a[0], dy = b[1] - a[1], l2 = dx * dx + dy * dy, t = l2 ? Math.max(0, Math.min(1, ((p[0] - a[0]) * dx + (p[1] - a[1]) * dy) / l2)) : 0;
+  return Math.sqrt((p[0] - a[0] - t * dx) ** 2 + (p[1] - a[1] - t * dy) ** 2);
+}
+
+// Raster über dem Grundstück, in Richtung u gedreht: je Zelle der Abstand der Zellmitte zum Rand, -1 außerhalb des Grundstücks
+function abstandsRaster(g, rand, u, z) {
+  const v = [-u[1], u[0]], S = g.map((p) => p[0] * u[0] + p[1] * u[1]), T = g.map((p) => p[0] * v[0] + p[1] * v[1]), s0 = Math.min(...S), t0 = Math.min(...T);
+  const ns = Math.ceil((Math.max(...S) - s0) / z), nt = Math.ceil((Math.max(...T) - t0) / z), m = new Float32Array(ns * nt), kanten = nachbarn(rand);
+  const ort = (i, j) => { const s = s0 + (i + 0.5) * z, t = t0 + (j + 0.5) * z; return [s * u[0] + t * v[0], s * u[1] + t * v[1]]; };
+  for (let j = 0; j < nt; j++) for (let i = 0; i < ns; i++) {
+    const p = ort(i, j);
+    m[j * ns + i] = innen(p, g) ? Math.min(...kanten.map(([a, b]) => abstandStrecke(p, a, b))) : -1;
+  }
+  return { ns, nt, m, ort };
+}
+
+// Größtes Rechteck aus freien Zellen, höchstens kappe Zellen in j-Richtung: [i0, i1, j0, j1] oder null. Gezählt wird von Zellmitte zu Zellmitte.
+function groesstesRechteck(frei, ns, nt, kappe) {
+  const h = new Int32Array(ns);
+  let best = null, flaeche = 0;
+  for (let j = 0; j < nt; j++) {
+    for (let i = 0; i < ns; i++) h[i] = frei(i, j) ? h[i] + 1 : 0;
+    const stapel = []; // [erste Spalte, Höhe], Höhen steigend
+    for (let i = 0; i <= ns; i++) {
+      const hoehe = i < ns ? Math.min(h[i], kappe) : 0;
+      let start = i;
+      while (stapel.length && stapel[stapel.length - 1][1] > hoehe) {
+        const [i0, hh] = stapel.pop();
+        if ((i - i0 - 1) * (hh - 1) > flaeche) { flaeche = (i - i0 - 1) * (hh - 1); best = [i0, i - 1, j - hh + 1, j]; }
+        start = i0;
+      }
+      if (hoehe && (!stapel.length || stapel[stapel.length - 1][1] < hoehe)) stapel.push([start, hoehe]);
+    }
+  }
+  return best;
+}
+
+// Je Geschosszahl: Abstand, Baufenster, größtes rechteckiges Haus und was daraus folgt (Wohnungen, Stellplätze, Räder, Spielfläche).
+// Gerechnet mit Flachdach und ohne die Pauschale für kleine Wohngebäude. null ohne Grundstück.
+// Das Haus hält von jedem Punkt aus den vollen Abstand zum Rand; das ist etwas strenger als die Messung senkrecht zur Wand.
+const ANNAHMEN = { geschosshoehe: 3, haustiefe: 14, anteil: 75, wohnung: 75 };
+function potenzial(a, hoechstens = 6) {
+  const G = a.grundstueck;
+  if (G.length < 3 || !G.every((p) => istZahl(p.x, p.y)) || Math.abs(flaeche(punkte(G))) < 0.01) return null;
+  const an = { ...ANNAHMEN }, g = punkte(G), rand = mitStrassen(g, G.map((p) => p.strasse)), baugebiet = a.baugebiet || "allgemein";
+  for (const k in ANNAHMEN) if (a.annahmen && a.annahmen[k] > 0) an[k] = a.annahmen[k];
+  const xs = g.map((p) => p[0]), ys = g.map((p) => p[1]);
+  const z = Math.max(0.25, Math.sqrt((Math.max(...xs) - Math.min(...xs)) * (Math.max(...ys) - Math.min(...ys)) / 20000)), zugabe = z * 0.71 + 0.02; // Zellmitte bis Zellecke
+  const richtungen = []; // die längsten Grenzen, ohne fast gleiche und fast senkrechte (die deckt die gedrehte Suche ab)
+  for (const [p, q] of nachbarn(g).sort((x, y) => lang(...y) - lang(...x)).slice(0, 4)) {
+    const u = [(q[0] - p[0]) / lang(p, q), (q[1] - p[1]) / lang(p, q)];
+    if (!richtungen.some((r) => { const c = Math.abs(r[0] * u[0] + r[1] * u[1]); return c > 0.998 || c < 0.05; })) richtungen.push(u);
+  }
+  const raster = richtungen.map((u) => abstandsRaster(g, rand, u, z)), zeilen = [];
+  for (let n = 1; n <= hoechstens; n++) {
+    const wandhoehe = rund(n * an.geschosshoehe);
+    const tiefe = abstandsflaeche({ breite: 10, wandhoehe, abstand_grenze: 0, giebel: false, dach: { neigung_grad: 0, hoehe: 0, gauben_laenge: 0 }, vorbauten: [] }, 3, n, baugebiet).tiefe;
+    const fenster = raster[0].m.reduce((sum, x) => sum + (x >= tiefe ? 1 : 0), 0) * z * z;
+    let haus = null, mass = [0, 0];
+    for (const r of raster) for (const quer of [false, true]) { // quer: Raster gespiegelt, damit die Haustiefe in beiden Richtungen liegen kann
+      const b = groesstesRechteck((i, j) => r.m[quer ? i * r.ns + j : j * r.ns + i] >= tiefe + zugabe, quer ? r.nt : r.ns, quer ? r.ns : r.nt, Math.floor(an.haustiefe / z) + 1);
+      if (!b || (b[1] - b[0]) * (b[3] - b[2]) * z * z <= mass[0] * mass[1] + 1e-9) continue;
+      const ecke = (i, j) => (quer ? r.ort(j, i) : r.ort(i, j)).map(rund);
+      mass = [(b[1] - b[0]) * z, (b[3] - b[2]) * z];
+      haus = [ecke(b[0], b[2]), ecke(b[1], b[2]), ecke(b[1], b[3]), ecke(b[0], b[3])];
+    }
+    if (Math.min(...mass) < 4) haus = null; // schmaler als 4 m ist kein Haus
+    const grund = haus ? mass[0] * mass[1] : 0, wohn = grund * n * an.anteil / 100, we = Math.floor(wohn / an.wohnung + 1e-9), liste = [{ anzahl: we, wohnflaeche: an.wohnung }];
+    zeilen.push({ geschosse: n, wandhoehe, tiefe, fenster: Math.round(fenster), haus, breite: haus ? rund(Math.max(...mass)) : 0, haustiefe: haus ? rund(Math.min(...mass)) : 0,
+      grundflaeche: Math.round(grund), wohnflaeche: Math.round(wohn), wohnungen: we, kfz: we ? stellplaetzeKfz(liste, a.oepnv || "keiner").mit_abschlag : 0,
+      raeder: we ? fahrradabstellplaetze(liste) : null, spiel: we ? spielplatz(liste, 0, "errichtung") : null });
+  }
+  return { zeilen, annahmen: an, baugebiet };
+}
+
+if (typeof module !== "undefined") {
+  module.exports = { linkSchreibe, linkLies, adressTeile, adressTreffer, dxfSchreibe, de, stellplaetzeKfz, fahrradabstellplaetze, spielplatz, geschuetzt, abstandsflaeche, spielraum, feuerwehr,
+    flaeche, innen, liegtAuf, mitStrassen, freiraum, dxfText, dxfPolygone, lage, loesung, katasterUrl, katasterLies, strassenVorschlag, bplanUrl, bplanTreffer, starthaus, potenzial };
+}
+</script>
+
+<script>
+// Oberfläche: Angaben lesen, Kern rechnen lassen, Blatt neu schreiben. Frei erfundenes Beispiel.
+const ecke = (x, y, mehr = {}) => ({ x, y, giebel: false, gauben: null, vname: "Balkone", vbreite: null, vtiefe: null, ...mehr });
+const LEER = { vorhaben: null, planungsrecht: null, gebaeudeklasse: null, oberirdische_geschosse: null, baugebiet: null,
+  denkmal: false, mischnutzung: false, zweiter_rettungsweg: null, bruestung_anleiterstelle: null, rueckwaertig: false,
+  entfernung_verkehrsflaeche: null, oepnv: null, einraumwohnungen: null, wohnungen: [], baeume: [],
+  wandhoehe: null, neigung: null, dachhoehe: null, grundstueck: [], haus: [],
+  kataster: { gemarkung: "Münster", flur: null, nummer: null, kennzeichen: null, lage: null, stand: null }, umgebung: { flurstuecke: [], gebaeude: [] },
+  bplan: null, // nach einem Abruf in Münster: { kraft: [...], verfahren: [...] }
+  annahmen: { ...ANNAHMEN }, nord: false, ursprung: null }; // ursprung: Ecke im Netz des Katasters, für die DXF-Ausgabe
+const BEISPIEL = { ...LEER, vorhaben: "errichtung", planungsrecht: "34", gebaeudeklasse: 4, oberirdische_geschosse: 4,
+  baugebiet: "allgemein", zweiter_rettungsweg: "feuerwehr", bruestung_anleiterstelle: 10.5, entfernung_verkehrsflaeche: 25, oepnv: "bus_10",
+  wohnungen: [{ anzahl: 6, wohnflaeche: 65, gefoerdert: false }, { anzahl: 2, wohnflaeche: 45, gefoerdert: false }],
+  baeume: [{ art: "Linde", stammumfang_cm: 120, faellen: true }, { art: "Birke", stammumfang_cm: 70, faellen: true }],
+  wandhoehe: 12.5, neigung: 35, dachhoehe: 4,
+  grundstueck: [{ x: 0, y: 0, strasse: 10 }, { x: 32, y: 0, strasse: null }, { x: 34, y: 24, strasse: null }, { x: 1, y: 22, strasse: null }],
+  haus: [ecke(7, 5), ecke(25, 5, { giebel: true }), ecke(25, 17, { gauben: 10, vbreite: 7.5, vtiefe: 1.5 }), ecke(7, 17, { giebel: true })] };
+const NEU = {
+  grundstueck: { x: null, y: null, strasse: null }, haus: ecke(null, null),
+  wohnungen: { anzahl: null, wohnflaeche: null, gefoerdert: false },
+  baeume: { art: "", stammumfang_cm: null, faellen: false } };
+const OEPNV_TEXT = { keiner: "ohne Abschlag", bus_20: "minus 10 % für die Bushaltestelle mit 20-Minuten-Takt im Umkreis von 300 m",
+  bus_10: "minus 15 % für die Bushaltestelle mit 10-Minuten-Takt im Umkreis von 300 m", altstadt: "minus 20 % für die Lage in Altstadt oder östlichem Bahnhofsbereich" };
+
+const merk = { lies: (k) => { try { return localStorage.getItem(k); } catch { return null; } }, schreib: (k, v) => { try { localStorage.setItem(k, v); } catch { /* privater Modus: dann eben nicht */ } } };
+let a = structuredClone(LEER); // Angaben vom letzten Mal, sonst leer: Dann fragt der Einstieg nach der Adresse
+try { const alt = JSON.parse(merk.lies("planungscheck")); if (alt && Array.isArray(alt.grundstueck) && Array.isArray(alt.haus)) a = { ...structuredClone(LEER), ...alt }; } catch { /* unlesbar: leer */ }
+let stand = JSON.stringify(a);
+const verlauf = [];
+const $ = (id) => document.getElementById(id);
+const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+const z = (x) => `<span class="zahl">${de(x)}</span>`;
+const num = (p, text, step = "0.01") => `<label>${text}<input type="number" min="0" step="${step}" data-p="${p}"></label>`;
+const weg = (p) => `<button type="button" data-weg="${p}" aria-label="Zeile entfernen">Entfernen</button>`;
+
+const koord = (p, text) => `<label>${text}<input type="number" step="0.01" data-p="${p}"></label>`;
+const REIHE = {
+  grundstueck: (i) => `<div class="reihe"><span class="seitenname breit">Punkt ${i + 1}</span>` + koord(`grundstueck.${i}.x`, "x") + koord(`grundstueck.${i}.y`, "y")
+    + num(`grundstueck.${i}.strasse`, "Straße bis zum nächsten Punkt, Breite") + weg(`grundstueck.${i}`) + `</div>`,
+  haus: (i) => `<div class="reihe"><span class="seitenname breit">Wand ${i + 1} · ab dieser Ecke</span>` + koord(`haus.${i}.x`, "x") + koord(`haus.${i}.y`, "y") + num(`haus.${i}.gauben`, "Gauben Länge")
+    + `<label class="haken breit"><input type="checkbox" data-p="haus.${i}.giebel">Giebelwand (Dachhöhe ist dann die Giebelhöhe)</label>`
+    + `<label>Balkone, Erker<input type="text" data-p="haus.${i}.vname"></label>` + num(`haus.${i}.vbreite`, "Breite zusammen") + num(`haus.${i}.vtiefe`, "Tiefe") + weg(`haus.${i}`) + `</div>`,
+  wohnungen: (i) => `<div class="reihe">` + num(`wohnungen.${i}.anzahl`, "Anzahl", "1") + num(`wohnungen.${i}.wohnflaeche`, "Wohnfläche m²", "0.1")
+    + `<label class="haken"><input type="checkbox" data-p="wohnungen.${i}.gefoerdert">gefördert</label>` + weg(`wohnungen.${i}`) + `</div>`,
+  baeume: (i) => `<div class="reihe"><label>Baumart<input type="text" data-p="baeume.${i}.art"></label>` + num(`baeume.${i}.stammumfang_cm`, "Umfang cm", "1")
+    + `<label class="haken"><input type="checkbox" data-p="baeume.${i}.faellen">wird gefällt oder beschädigt</label>` + weg(`baeume.${i}`) + `</div>`,
+};
+
+function ziel(p) { // [Objekt, Schlüssel] zu einem Pfad wie "wohnungen.0.anzahl"
+  const teile = p.split("."), k = teile.pop();
+  return [teile.reduce((o, t) => o[t], a), k];
+}
+
+function fuelleFormular() {
+  for (const liste in REIHE) $(liste).innerHTML = a[liste].map((_, i) => REIHE[liste](i)).join("");
+  for (const el of $("angaben").querySelectorAll("[data-p]")) {
+    const [o, k] = ziel(el.dataset.p);
+    if (el.type === "checkbox") el.checked = !!o[k]; else el.value = o[k] ?? "";
+  }
+  $("adresse").value = a.kataster.lage || "";
+}
+
+function eingabe(e) {
+  const el = e.target;
+  if (!el.dataset.p) return;
+  beende();
+  const [o, k] = ziel(el.dataset.p);
+  if (el.type === "checkbox") o[k] = el.checked;
+  else if (el.type === "number" || "zahl" in el.dataset) o[k] = el.value === "" || isNaN(Number(el.value)) ? null : Number(el.value);
+  else o[k] = el.value === "" ? null : el.value;
+  zeichneBlatt();
+}
+$("angaben").addEventListener("input", eingabe);
+$("blatt").addEventListener("change", (e) => { if (e.target.dataset.p) { eingabe(e); fuelleFormular(); } }); // Nachfragen im Ergebnis: erst beim Verlassen des Felds
+$("angaben").addEventListener("click", (e) => {
+  const d = e.target.dataset;
+  if (d.neu || d.weg || d.dreh) beende();
+  if (d.neu === "grundstueck" || d.neu === "haus") { // leer: Rechteck als Anfang; sonst neuer Punkt mitten auf der letzten Kante
+    const l = a[d.neu], p = l[l.length - 1], q = l[0];
+    if (l.length < 3 && d.neu === "haus") {
+      const g = a.grundstueck.length > 2 && a.grundstueck.every((q) => istZahl(q.x, q.y)) ? punkte(a.grundstueck) : [[0, 0], [20, 0], [20, 22], [0, 22]];
+      a.haus = starthaus(g, mitStrassen(g, a.grundstueck.map((q) => q.strasse))).map(([x, y]) => ecke(x, y));
+    } else if (l.length < 3) a[d.neu] = [[0, 0], [20, 0], [20, 30], [0, 30]].map(([x, y]) => ({ x, y, strasse: null }));
+    else l.push({ ...NEU[d.neu], x: istZahl(p.x, q.x) ? rund((p.x + q.x) / 2) : null, y: istZahl(p.y, q.y) ? rund((p.y + q.y) / 2) : null });
+  } else if (d.dreh) drehe(Number(d.dreh));
+  else if (d.neu) a[d.neu].push({ ...NEU[d.neu] });
+  else if (d.weg) { const [liste, i] = ziel(d.weg); liste.splice(Number(i), 1); }
+  else return;
+  fuelleFormular(); zeichneBlatt();
+});
+$("beispiel").addEventListener("click", () => { beende(); a = structuredClone(BEISPIEL); $("dxfwahl").hidden = $("dxfmeldung").hidden = $("katastermeldung").hidden = true; linkZiel = null; vorhang = null; fuelleFormular(); zeichneBlatt(); });
+$("leeren").addEventListener("click", () => { beende(); a = structuredClone(LEER); $("dxfwahl").hidden = $("dxfmeldung").hidden = $("katastermeldung").hidden = true; linkZiel = null; vorhang = null; fuelleFormular(); zeichneBlatt(); });
+
+let ansicht = null, zug = null, passt = { schluessel: "", P: null }; // Ansicht bleibt beim Ziehen stehen; passt: Tabelle „Was passt“
+let gezeigt = null; // zuletzt gezeichnet, für die Vorschau aus der Tabelle
+let linkZiel = linkLies(location.hash), vorhang = null, rauteStand = null; // Einstieg über der Zeichenfläche: "link", "laedt", "wahl" oder erzwungen "leer"
+if (linkZiel && linkZiel.kennzeichen === a.kataster.kennzeichen) linkZiel = null; // dieses Grundstück ist schon da
+const setze = (el, html) => { if (el.inhalt !== html) { el.innerHTML = html; el.inhalt = html; } }; // nur bei Änderung: sonst verliert ein Feld darin beim Neuzeichnen den Fokus
+const ebenen = { flaechen: true, masse: true, umgebung: true, raster: true }; // was die Zeichenfläche zeigt
+function zeichnePlan(L, geist, schau = null) {
+  gezeigt = { L, geist };
+  if (!zug || !ansicht) {
+    const alle = [...L.g, ...L.strassen.flatMap((s) => [[s.a[0] + s.n[0] * s.w, s.a[1] + s.n[1] * s.w], [s.b[0] + s.n[0] * s.w, s.b[1] + s.n[1] * s.w]])];
+    const um = a.umgebung.flurstuecke.length ? 10 : 3; // mit Nachbarn aus dem Kataster etwas mehr Umgebung zeigen
+    const xs = alle.map((p) => p[0]), ys = alle.map((p) => p[1]), b = Math.max(...xs) - Math.min(...xs) + 2 * um, t = Math.max(...ys) - Math.min(...ys) + 2 * um;
+    const r = $("buehne").getBoundingClientRect(), hoehe = r.width > 0 && r.height > 120 ? 640 * r.height / r.width : 560; // Zeichnung füllt die Fläche
+    ansicht = { k: Math.min(600 / b, (hoehe - 70) / t), cx: (Math.max(...xs) + Math.min(...xs)) / 2, cy: (Math.max(...ys) + Math.min(...ys)) / 2, hoehe };
+  }
+  const { k, cx, cy, hoehe } = ansicht, px = (x) => 320 + (x - cx) * k, py = (y) => hoehe / 2 - 6 + (cy - y) * k;
+  const P = (v) => v.map(([x, y]) => `${px(x).toFixed(1)},${py(y).toFixed(1)}`).join(" ");
+  const vieleck = (v, attr) => `<polygon points="${P(v)}" ${attr}/>`;
+  const flaecheVor = (W, s0, s1, t0, t1, rand) => { const v = [W.vor(s0, t0), W.vor(s1, t0), W.vor(s1, t1), W.vor(s0, t1)];
+    const farbe = W.ok ? "akzent" : "fehl";
+    return vieleck(v, `fill="var(--${farbe}-flaeche)" stroke="var(--${farbe})" stroke-width=".7"${rand ? ' stroke-dasharray="3 3"' : ""}`) + vieleck(v, 'fill="url(#schraffur)" clip-path="url(#jenseits)"'); };
+  let raster = "";
+  if (ebenen.raster) { // Meterraster, 5 oder 10 m
+    const m = k * 5 >= 14 ? 5 : 10, x1 = cx - 320 / k, y1 = cy - hoehe / 2 / k;
+    for (let x = Math.ceil(x1 / m) * m; x <= cx + 320 / k; x += m) raster += `M${px(x).toFixed(1)} 0V${hoehe}`;
+    for (let y = Math.ceil(y1 / m) * m; y <= cy + hoehe / 2 / k; y += m) raster += `M0 ${py(y).toFixed(1)}H640`;
+  }
+  let t = `<path d="${raster}" stroke="var(--raster)" stroke-width=".6" fill="none"/><defs><clipPath id="jenseits"><path clip-rule="evenodd" d="M-2000 -2000H4000V4000H-2000Z M${P(L.rand).replace(/ /g, " L")}Z"/></clipPath></defs>`;
+  if (ebenen.umgebung) t += `<g class="umfeld">` + a.umgebung.flurstuecke.map((v) => vieleck(v, 'fill="none" stroke="var(--blei)" stroke-width=".6"')).join("")
+    + a.umgebung.gebaeude.map((v) => vieleck(v, 'fill="var(--raster)" stroke="var(--blei)" stroke-width=".6"')).join("") + `</g>`;
+  for (const s of L.strassen) {
+    const m = (p, w) => [p[0] + s.n[0] * w, p[1] + s.n[1] * w], mitte = m(mittel([s.a, s.b]), s.w / 2);
+    t += vieleck([s.a, s.b, m(s.b, s.w), m(s.a, s.w)], 'fill="var(--gebaeude)" fill-opacity=".7"')
+      + `<line x1="${px(m(s.a, s.w / 2)[0])}" y1="${py(m(s.a, s.w / 2)[1])}" x2="${px(m(s.b, s.w / 2)[0])}" y2="${py(m(s.b, s.w / 2)[1])}" stroke="var(--blei)" stroke-dasharray="8 6"/>`
+      + `<text x="${px(mitte[0])}" y="${py(mitte[1]) - 5}" text-anchor="middle" class="blei">Straßenmitte</text>`;
+  }
+  for (const W of L.waende) {
+    const v = W.w.vorbauten[0], zeigen = ebenen.flaechen && !schau; // bei der Vorschau stören die Flächen des jetzigen Hauses
+    if (zeigen) t += flaecheVor(W, 0, W.l, 0, W.r.tiefe, false);
+    if (zeigen && v && !W.r.vorbauten_ausser_betracht) t += flaecheVor(W, W.l0, W.l1, v.tiefe, v.tiefe + W.r.tiefe, true);
+    if (v) t += vieleck([W.vor(W.l0, 0), W.vor(W.l1, 0), W.vor(W.l1, v.tiefe), W.vor(W.l0, v.tiefe)], 'fill="var(--papier)" stroke="var(--tusche)" stroke-width="1.5"');
+  }
+  if (schau) t += `<mask id="fenster">${vieleck(L.g, 'fill="white"')}${vieleck(L.rand, `fill="none" stroke="black" stroke-width="${2 * schau.tiefe * k}" stroke-linejoin="round"`)}</mask>`
+    + vieleck(L.g, 'fill="var(--akzent)" fill-opacity=".16" mask="url(#fenster)"') // Baufenster: Grundstück ohne den Streifen am Rand
+    + vieleck(L.rand, `fill="none" stroke="var(--akzent)" stroke-width="${2 * schau.tiefe * k + 3}" stroke-linejoin="round" mask="url(#fenster)"`); // seine Kante
+  t += vieleck(L.g, 'class="grenze" fill="none" stroke="var(--tusche)" stroke-width="1.5" stroke-dasharray="10 4 2 4"');
+  if ($("plan").classList.contains("auftritt")) t += vieleck(L.g, 'class="spur" pathLength="1" stroke-dasharray="1" fill="none" stroke="var(--akzent)" stroke-width="2.5" stroke-linejoin="round"');
+  if (L.h.length) t += vieleck(L.h, `fill="var(--gebaeude)" stroke="var(--tusche)" stroke-width="2" stroke-linejoin="round" data-haus${schau ? ' opacity=".35"' : ""}`);
+  if (geist) t += vieleck(L.h.map(([x, y]) => [x + geist[0], y + geist[1]]), 'fill="none" stroke="var(--akzent)" stroke-width="1.5" stroke-dasharray="6 4" pointer-events="none"');
+  if (schau && schau.haus) t += vieleck(schau.haus, 'fill="var(--gebaeude)" stroke="var(--akzent)" stroke-width="2" stroke-linejoin="round" pointer-events="none"');
+  if (schau && schau.titel) t += `<text x="320" y="${hoehe - 16}" text-anchor="middle" class="titel" pointer-events="none">${schau.titel}</text>`;
+  for (const W of schau ? [] : L.waende) {
+    const nr = W.vor(W.l / 2, -11 / k);
+    t += `<text x="${px(nr[0])}" y="${py(nr[1]) + 3.5}" text-anchor="middle" class="blei" pointer-events="none">${W.nr}</text>`;
+    if (ebenen.masse && !schau && W.frei * k > 24) { // Maßkette von der Wand bis zum Rand, mit Schrägstrichen wie im Plan
+      const p0 = W.vor(W.l / 2, 0), p1 = W.vor(W.l / 2, W.frei), neben = W.vor(W.l / 2 + 17 / k, W.frei / 2);
+      const strich = ([x, y]) => `<line x1="${px(x) - 3.5}" y1="${py(y) + 3.5}" x2="${px(x) + 3.5}" y2="${py(y) - 3.5}"/>`;
+      t += `<g stroke="var(--${W.ok ? "tusche" : "fehl"})" stroke-width="1" pointer-events="none"><line x1="${px(p0[0])}" y1="${py(p0[1])}" x2="${px(p1[0])}" y2="${py(p1[1])}"/>${strich(p0)}${strich(p1)}</g>`
+        + `<text x="${px(neben[0])}" y="${py(neben[1]) + 3.5}" text-anchor="middle"${W.ok ? "" : ' class="fehl"'} pointer-events="none">${de(W.frei)}</text>`;
+    }
+  }
+  const c = mittel(L.h);
+  t += L.g.map(([x, y], i) => `<rect x="${px(x) - 4}" y="${py(y) - 4}" width="8" height="8" fill="var(--papier)" stroke="var(--tusche)" data-g="${i}"><title>Grenzpunkt ${i + 1} ziehen</title></rect>`).join("")
+    + (schau ? [] : L.h).map(([x, y], i) => `<circle data-ecke cx="${px(x)}" cy="${py(y)}" r="4.5" fill="var(--papier)" stroke="var(--tusche)" stroke-width="1.5" data-h="${i}"><title>Hausecke ${i + 1} ziehen</title></circle>`).join("")
+    + (!L.h.length || schau ? "" : `<circle cx="${px(c[0])}" cy="${py(c[1])}" r="9" fill="var(--papier)" stroke="var(--tusche)" stroke-width="1.5" stroke-dasharray="11 3" data-dreh><title>Haus drehen</title></circle>`);
+  const n = 5 * k <= 200 ? 5 : 1;
+  const m0 = 584 - n * k; // Maßstab unten rechts
+  for (let i = 0; i < n; i++) t += `<rect x="${m0 + i * k}" y="${hoehe - 22}" width="${k}" height="4" fill="${i % 2 ? "none" : "var(--tusche)"}" stroke="var(--tusche)" stroke-width="1"/>`;
+  t += `<text x="${m0 + n * k + 6}" y="${hoehe - 17}" class="blei">${n} m</text>`;
+  if (a.nord) t += `<g stroke="var(--tusche)" stroke-width="1.2" fill="none"><path d="M24 ${hoehe - 14}v-30m0 0l-4.5 9m4.5 -9l4.5 9"/></g><text x="24" y="${hoehe - 50}" text-anchor="middle">N</text>`;
+  $("plan").setAttribute("viewBox", `0 0 640 ${hoehe}`);
+  $("plan").innerHTML = t;
+  const fg = Math.abs(flaeche(L.g)), fh = L.h.length ? Math.abs(flaeche(L.h)) : 0;
+  $("kennzahl").textContent = `Grundstück ${Math.round(fg)} m²` + (fh ? ` · Grundfläche ${Math.round(fh)} m² · GRZ ${de(fh / fg)}` + (a.oberirdische_geschosse ? ` · GFZ ${de(fh * a.oberirdische_geschosse / fg)}` : "") : "");
+}
+
+const kachel = (label, stark, text) => `<div class="weg"><span class="label">${label}</span><strong>${stark}</strong><p>${text}</p></div>`;
+
+const ampel = (status, text) => { $("lage").dataset.status = status; $("ampel").textContent = text; $("legende").hidden = status !== "ok" && status !== "fehl"; };
+const FELD = { "Wandhöhe": "wandhoehe", "Gebäudeklasse": "gebaeudeklasse", "Geschosse": "oberirdische_geschosse", "Baugebiet": "baugebiet" };
+function nachfrage(name) { // dasselbe Feld wie links, hier direkt im Ergebnis
+  const q = $("angaben").querySelector(`[data-p="${FELD[name]}"]`);
+  return `<label>${name}${q.tagName === "SELECT" ? `<select data-p="${FELD[name]}"${"zahl" in q.dataset ? " data-zahl" : ""}>${q.innerHTML}</select>` : `<input type="number" min="${q.min}" step="${q.step}" data-p="${FELD[name]}">`}</label>`;
+}
+
+function zeichneLage(L) {
+  const eng = L.waende.filter((W) => !W.ok), hoehen = L.waende.map((W) => W.sp).filter((sp) => !sp.pauschal).map((sp) => sp.hoechste_wandhoehe);
+  const hoechste = hoehen.length && hoehen.every((x) => x !== null) ? Math.min(...hoehen) : null;
+  let kacheln = "", geist = null;
+  if (L.fehlt.length) { // Plan zeigen, Urteil erst mit allen Angaben
+    const ohneHaus = L.fehlt.includes("Haus"), offen = L.fehlt.filter((n) => FELD[n]);
+    ampel(ohneHaus ? "offen" : "fehlt", ohneHaus ? "Noch kein Haus" : "Angaben fehlen");
+    $("urteil").innerHTML = ohneHaus ? `Noch <em>kein Haus im Plan.</em>` : `Für das Urteil <em>${offen.length === 1 ? "fehlt eine Angabe" : `fehlen ${offen.length} Angaben`}.</em>`;
+    $("urteiltext").innerHTML = ohneHaus ? `Oben eine Stufe wählen und „In den Plan“ klicken. <button type="button" class="link" data-starthaus>Oder ein kleines Haus setzen</button> und selbst zurechtziehen.` : "Hier eintragen, die Seite rechnet sofort:";
+    setze($("wege"), ohneHaus ? "" : `<div class="nachfrage">${offen.map(nachfrage).join("")}</div>`);
+    zeichnePlan(L, null);
+    return [];
+  }
+  if (!L.auf) {
+    ampel("fehl", "Außerhalb des Grundstücks");
+    $("urteil").innerHTML = `Das Haus <em>liegt nicht ganz auf dem Grundstück.</em>`;
+    $("urteiltext").innerHTML = `Bitte Lage und Maße prüfen oder das Haus im Plan zurück auf das Grundstück ziehen.`;
+  } else if (eng.length) {
+    ampel("fehl", "Nicht eingehalten");
+    $("urteil").innerHTML = eng.length === 1 ? `Wand ${eng[0].nr}: <em>${de(-eng[0].luft)} m zu nah an der Grenze.</em>` : `${eng.length} Wände <em>zu nah an der Grenze.</em>`;
+    $("urteiltext").innerHTML = eng.map((W) => { const v = W.w.vorbauten[0];
+      return `Wand ${W.nr}: ${z(W.frei)} m frei, nötig ${z(W.sp.mindestabstand)} m.` + (v && !W.r.vorbauten_ausser_betracht ? ` ${esc(v.name)} zählen mit: ${esc(W.r.vorbau_hinweise.join("; "))}.` : ""); }).join(" ");
+    geist = loesung(a);
+    kacheln = (geist ? kachel("Weg A", `Haus ${de(Math.ceil(Math.sqrt(geist[0] ** 2 + geist[1] ** 2) * 100 - 1e-6) / 100)} m verschieben`, `Im Plan gestrichelt: Dort halten alle Wände ihren Abstand. <button type="button" data-einpassen>So verschieben</button>`)
+        : kachel("Weg A", "Verschieben allein reicht nicht", "Mit dieser Höhe und Ausrichtung findet die Seite keinen passenden Standort. Drehen, kleiner oder niedriger planen."))
+      + kachel("Weg B", hoechste !== null ? `Wandhöhe höchstens ${de(hoechste)} m` : "Niedriger bauen hilft hier nicht", hoechste !== null ? `Geplant sind ${de(a.wandhoehe)} m. Dann passen alle Wände an diesem Standort.` : "An mindestens einer Wand ist der Abstand auch für die niedrigste Wand zu klein.");
+    const vb = eng.find((W) => W.w.vorbauten.length && !W.r.vorbauten_ausser_betracht);
+    if (vb) { const v = vb.w.vorbauten[0], b = [];
+      if (3 * mm(v.breite) > mm(vb.w.breite)) b.push(`höchstens ${de(Math.floor(vb.w.breite * 100 / 3) / 100)} m breit`);
+      if (v.tiefe > 1.6) b.push("höchstens 1,60 m tief");
+      if (b.length) kacheln += kachel("Weg C", `${esc(v.name)} ${b.join(", ")}`, "Dann zählen sie nicht mit, solange ihre Vorderkante 2,00 m von der Grenze bleibt."); }
+  } else {
+    ampel("ok", "Eingehalten");
+    const W0 = L.waende.reduce((x, y) => y.luft < x.luft ? y : x), fg = Math.abs(flaeche(L.g)), fh = Math.abs(flaeche(L.h));
+    $("urteil").innerHTML = `Das Haus <em>hält alle Abstände ein.</em>`;
+    $("urteiltext").innerHTML = `Alle Abstandsflächen liegen auf dem Grundstück oder reichen höchstens bis zur Mitte der Straße. Engste Stelle: Wand ${W0.nr}, ${z(W0.luft)} m Luft.`;
+    kacheln = (hoechste !== null ? kachel("Wandhöhe", `bis ${de(hoechste)} m`, `An diesem Standort möglich, geplant sind ${de(a.wandhoehe)} m. Mit der Höhe können sich Gebäudeklasse und Brandschutz ändern.`)
+        : kachel("Wandhöhe", "ohne Einfluss", "Für dieses Haus gilt pauschal 3,00 m Abstand, unabhängig von der Wandhöhe."))
+      + kachel("Engste Stelle", `Wand ${W0.nr} · ${de(W0.luft)} m Luft`, "So weit könnte die Wand noch an die Grenze rücken.")
+      + kachel("Überbaut", `${Math.round(fh)} von ${Math.round(fg)} m²`, `Das Haus bedeckt ${Math.round(100 * fh / fg)} % des Grundstücks. Was der Bebauungsplan zulässt, prüft diese Seite nicht.`);
+  }
+  setze($("wege"), kacheln);
+  zeichnePlan(L, geist);
+  const rechnung = L.waende.map((W) => { const { w, r } = W, v = w.vorbauten[0];
+    return `<p><strong>Wand ${W.nr}.</strong> Wandhöhe ${de(w.wandhoehe)} m plus Zuschlag ${de(r.zuschlag)} m (${r.zuschlag_grund}) ergibt H = ${de(r.hoehe_h)} m. Tiefe der Abstandsfläche ${de(r.tiefe)} m: ${r.tiefe_regel}.`
+      + (v ? (r.vorbauten_ausser_betracht ? ` ${esc(v.name)} bleiben außer Betracht.` : ` ${esc(v.name)} zählen mit (${esc(r.vorbau_hinweise.join("; "))}).`) : "") + `</p>`; }).join("");
+  return [`<table class="nachweis"><thead><tr><th>Wand</th><th>Länge</th><th>H</th><th>nötig</th><th>frei</th><th>Reserve</th></tr></thead><tbody>`
+    + L.waende.map((W) => `<tr${W.ok ? "" : ' class="fehl"'}><td>${W.nr}</td><td>${de(W.w.breite)}</td><td>${de(W.r.hoehe_h)}</td><td>${de(W.sp.mindestabstand)}</td><td>${de(W.frei)}</td><td>${W.ok ? "+" : "−"}${de(Math.abs(W.luft))}</td></tr>`).join("")
+    + `</tbody></table><p class="klein" style="margin-top:8px">Alle Maße in Metern. „Frei“ ist senkrecht zur Wand an der engsten Stelle gemessen, bei Straßen bis zur Mitte.</p>`
+    + `<details class="rechenweg"><summary>Rechenweg je Wand</summary>${rechnung}<p>Quelle: Bauordnung NRW, Abstandsflächen.</p></details>`];
+}
+
+function neu() { fuelleFormular(); zeichneBlatt(); }
+function drehe(grad, basis = a.haus) { // um den Mittelpunkt, gegen den Uhrzeigersinn
+  if (basis.length < 3 || !basis.every((p) => istZahl(p.x, p.y))) return;
+  const c = mittel(punkte(basis)), w = grad * Math.PI / 180, co = Math.cos(w), si = Math.sin(w);
+  basis.forEach((p, i) => { const x = p.x - c[0], y = p.y - c[1]; a.haus[i].x = rund(c[0] + x * co - y * si); a.haus[i].y = rund(c[1] + x * si + y * co); });
+}
+const verschiebe = (dx, dy, basis = a.haus) => basis.forEach((p, i) => { a.haus[i].x = rund(p.x + dx); a.haus[i].y = rund(p.y + dy); });
+const raste = (v) => Math.round(v * 20) / 20; // 5 cm
+function ort(e) { // Zeiger in Metern
+  const p = new DOMPoint(e.clientX, e.clientY).matrixTransform($("plan").getScreenCTM().inverse());
+  return [ansicht.cx + (p.x - 320) / ansicht.k, ansicht.cy - (p.y - ansicht.hoehe / 2 + 6) / ansicht.k];
+}
+
+// Bewegte Bilder: bild(w) mit w von 0 bis 1. Wer weniger Bewegung wünscht, sieht gleich das Ende.
+let film = null, auftrittUhr = 0;
+const ruhig = matchMedia("(prefers-reduced-motion: reduce)").matches;
+function beende() { clearTimeout(auftrittUhr); $("plan").classList.remove("auftritt"); if (!film) return; cancelAnimationFrame(film.id); const f = film; film = null; f.bild(1); if (f.ende) f.ende(); }
+function spiele(dauer, bild, ende, weich = true) {
+  beende();
+  if (ruhig) { bild(1); if (ende) ende(); return; }
+  const start = performance.now(), dieser = film = { bild, ende };
+  setTimeout(() => { if (film === dieser) beende(); }, dauer + 500); // läuft der Film nicht, etwa im Hintergrund, kommt trotzdem das Ende
+  const schritt = (jetzt) => {
+    if (!film) return;
+    const t = Math.min(1, (jetzt - start) / dauer);
+    bild(weich ? (t < 0.5 ? 2 * t * t : 1 - (2 - 2 * t) ** 2 / 2) : t);
+    if (t < 1) film.id = requestAnimationFrame(schritt); else { film = null; if (ende) ende(); }
+  };
+  film.id = requestAnimationFrame(schritt);
+}
+function passe(von, nach) { // Ecken von nach so reihen, dass sie den kürzesten Weg zu von haben
+  let best = nach, weg = Infinity;
+  if (von.length === nach.length) for (const richtung of [1, -1]) for (let v = 0; v < nach.length; v++) {
+    const z = nach.map((_, i) => nach[((v + richtung * i) % nach.length + nach.length) % nach.length]), w = z.reduce((sum, p, i) => sum + (p[0] - von[i][0]) ** 2 + (p[1] - von[i][1]) ** 2, 0);
+    if (w < weg) { weg = w; best = z; }
+  }
+  return best;
+}
+const dazwischen = (v, n, w) => v.map((p, i) => [p[0] + (n[i][0] - p[0]) * w, p[1] + (n[i][1] - p[1]) * w]);
+$("plan").addEventListener("pointerdown", (e) => {
+  const d = e.target.dataset, art = ["haus", "h", "g", "dreh"].find((k) => k in d);
+  if (!art || !ansicht) return;
+  beende();
+  $("plan").setPointerCapture(e.pointerId);
+  zug = { art, i: Number(d[art]), start: ort(e), G: structuredClone(a.grundstueck), H: structuredClone(a.haus) };
+});
+$("plan").addEventListener("pointermove", (e) => {
+  if (ansicht) { const o = ort(e); $("koord").textContent = `x ${de(o[0])} · y ${de(o[1])} m`; }
+  if (!zug || zug.art === "film") return;
+  const o = ort(e), dx = raste(o[0] - zug.start[0]), dy = raste(o[1] - zug.start[1]);
+  if (zug.art === "haus") verschiebe(dx, dy, zug.H);
+  else if (zug.art === "dreh") { const c = mittel(punkte(zug.H)); drehe(Math.round((Math.atan2(o[1] - c[1], o[0] - c[0]) - Math.atan2(zug.start[1] - c[1], zug.start[0] - c[0])) * 180 / Math.PI), zug.H); }
+  else { const liste = zug.art === "h" ? "haus" : "grundstueck", alt = (zug.art === "h" ? zug.H : zug.G)[zug.i]; a[liste][zug.i].x = rund(alt.x + dx); a[liste][zug.i].y = rund(alt.y + dy); }
+  neu();
+});
+for (const typ of ["pointerup", "pointercancel"]) $("plan").addEventListener(typ, () => { if (zug && zug.art !== "film") { zug = null; zeichneBlatt(); } });
+$("buehne").addEventListener("click", (e) => { if (e.target.tagName === "BUTTON" && e.target.dataset.dreh) { beende(); drehe(Number(e.target.dataset.dreh)); neu(); } });
+$("ebenen").addEventListener("change", (e) => { ebenen[e.target.dataset.ebene] = e.target.checked; zeichneBlatt(); });
+addEventListener("resize", () => { if (!zug) zeichneBlatt(); });
+$("plan").addEventListener("keydown", (e) => {
+  const d = { ArrowLeft: [-1, 0], ArrowRight: [1, 0], ArrowUp: [0, 1], ArrowDown: [0, -1] }[e.key], schritt = e.shiftKey ? 0.5 : 0.05;
+  if (!a.haus.every((p) => istZahl(p.x, p.y))) return;
+  if (d) verschiebe(d[0] * schritt, d[1] * schritt); else if (e.key === "r" || e.key === "R") drehe(e.shiftKey ? -1 : 1); else return;
+  e.preventDefault(); neu();
+});
+for (const [typ, an] of [["pointerover", true], ["pointerleave", false]]) $("passtzeilen").addEventListener(typ, (e) => { // Zeile berühren: Vorschau im Plan
+  const stufe = an && e.target.closest("[data-zeile]"), r = stufe && passt.P.zeilen[stufe.dataset.zeile - 1];
+  if (gezeigt && !zug && !film) zeichnePlan(gezeigt.L, gezeigt.geist, r && r.haus ? r : null);
+});
+$("blatt").addEventListener("click", (e) => {
+  const r = e.target.dataset.nimm && passt.P.zeilen[e.target.dataset.nimm - 1];
+  if (r) { // Stufe wird zum Entwurf: Das Haus gleitet an seinen Platz, die Wand wächst, die Abstandsflächen wachsen mit
+    beende();
+    const altes = a.haus.length === 4 && a.haus.every((p) => istZahl(p.x, p.y)) ? punkte(a.haus) : null, c = mittel(r.haus);
+    const von = altes || r.haus.map(([x, y]) => [c[0] + (x - c[0]) * 0.15, c[1] + (y - c[1]) * 0.15]), nach = passe(von, r.haus), h0 = altes && istZahl(a.wandhoehe) ? a.wandhoehe : 0;
+    a.haus = von.map(([x, y]) => ecke(x, y)); a.neigung = a.dachhoehe = null; a.oberirdische_geschosse = r.geschosse; a.vorhaben = a.vorhaben || "errichtung";
+    if (r.wohnungen) a.wohnungen = [{ anzahl: r.wohnungen, wohnflaeche: passt.P.annahmen.wohnung, gefoerdert: false }];
+    zug = { art: "film" };
+    spiele(900, (w) => { dazwischen(von, nach, w).forEach(([x, y], i) => { a.haus[i].x = rund(x); a.haus[i].y = rund(y); }); a.wandhoehe = rund(h0 + (r.wandhoehe - h0) * w); zeichneBlatt(); },
+      () => { zug = null; neu(); });
+    $("buehne").scrollIntoView({ behavior: "smooth", block: "nearest" });
+  }
+  if (e.target.hasAttribute("data-starthaus")) document.querySelector('[data-neu="haus"]').click();
+  const d = e.target.hasAttribute("data-einpassen") && loesung(a);
+  if (d) { // das Haus gleitet an den gefundenen Standort
+    beende();
+    const basis = structuredClone(a.haus);
+    zug = { art: "film" };
+    spiele(700, (w) => { verschiebe(d[0] * w, d[1] * w, basis); zeichneBlatt(); }, () => { zug = null; neu(); });
+  }
+});
+
+// Abspielen: Geschoss für Geschoss das Baufenster und das größte Haus zeigen; bisBeste: zügig und bei der Stufe mit den meisten Wohnungen stehen bleiben
+function stufenfilm(bisBeste = false) {
+  const alle = passt.P ? passt.P.zeilen.filter((r) => r.haus) : [];
+  if (!alle.length || !gezeigt) return;
+  const meiste = Math.max(...alle.map((r) => r.wohnungen)), R = bisBeste ? alle.slice(0, alle.findIndex((r) => r.wohnungen === meiste) + 1) : alle;
+  const H = [R[0].haus];
+  for (let i = 1; i < R.length; i++) H.push(passe(H[i - 1], R[i].haus));
+  const markiere = (n) => document.querySelectorAll(".stufe").forEach((el) => el.classList.toggle("aktiv", el.dataset.zeile === String(n)));
+  const titel = (r) => `${r.geschosse} ${r.geschosse === 1 ? "Geschoss" : "Geschosse"} · ${r.wohnungen} ${r.wohnungen === 1 ? "Wohnung" : "Wohnungen"} · Abstand ${de(r.tiefe)} m`;
+  spiele(R.length * (bisBeste ? 750 : 1300), (t) => {
+    const stelle = Math.min(t * R.length, R.length - 1e-9), i = Math.floor(stelle), j = Math.min(i + 1, R.length - 1), u = Math.max(0, (stelle - i - 0.55) / 0.45), w = u * u * (3 - 2 * u); // erst zeigen, dann weiter
+    markiere(R[i].geschosse);
+    zeichnePlan(gezeigt.L, gezeigt.geist, { tiefe: R[i].tiefe + (R[j].tiefe - R[i].tiefe) * w, haus: dazwischen(H[i], H[j], w), titel: titel(R[i]) });
+  }, () => {
+    const r = R[R.length - 1];
+    markiere(bisBeste ? r.geschosse : null);
+    zeichnePlan(gezeigt.L, gezeigt.geist, bisBeste ? { tiefe: r.tiefe, haus: r.haus, titel: titel(r) } : null);
+  }, false);
+}
+$("spiel").addEventListener("click", () => { $("buehne").scrollIntoView({ behavior: "smooth", block: "nearest" }); stufenfilm(); });
+function auftritt() { // nach dem Abruf: Umriss läuft um, Umgebung blendet ein, dann Geschoss für Geschoss bis zur besten Stufe
+  const L = lage(a);
+  if (!L) return;
+  if (ruhig) { stufenfilm(true); return; }
+  $("plan").classList.add("auftritt");
+  zeichnePlan(L, null);
+  auftrittUhr = setTimeout(() => { $("plan").classList.remove("auftritt"); zeichnePlan(L, null); stufenfilm(true); }, 1700);
+}
+
+// DXF: auf diesem Gerät lesen, größten geschlossenen Linienzug als Grundstück vorschlagen, größten darin als Haus
+let dxfListe = [];
+function dxfSetze(gi, hi) {
+  beende();
+  const g = dxfListe[gi].punkte, xs = g.map((p) => p[0]), ys = g.map((p) => p[1]), x0 = Math.min(...xs), y0 = Math.min(...ys);
+  const f = Math.max(...xs) - x0 > 2000 ? 0.001 : 1, um = (p) => [rund((p[0] - x0) * f), rund((p[1] - y0) * f)]; // sehr große Maße: Millimeter
+  a.grundstueck = g.map(um).map(([x, y]) => ({ x, y, strasse: null }));
+  a.umgebung = structuredClone(LEER.umgebung); a.bplan = null; a.nord = false; a.ursprung = null; a.kataster.kennzeichen = a.kataster.lage = a.kataster.stand = null; linkZiel = null; vorhang = null;
+  a.haus = hi >= 0 && hi !== gi ? dxfListe[hi].punkte.map(um).map(([x, y]) => ecke(x, y)) : [];
+  neu();
+}
+$("dxfknopf").addEventListener("click", () => $("dxf").click());
+async function ladeDxf(datei) {
+  if (!datei) return;
+  dxfListe = dxfPolygone(dxfText(await datei.arrayBuffer())).sort((x, y) => Math.abs(flaeche(y.punkte)) - Math.abs(flaeche(x.punkte)));
+  $("dxfmeldung").hidden = false; $("dxfwahl").hidden = !dxfListe.length;
+  if (!dxfListe.length) { $("dxfmeldung").textContent = "In der Datei sind keine geschlossenen Linienzüge. Grundstück und Haus bitte als geschlossene Polylinien exportieren."; return; }
+  const hi = dxfListe.findIndex((p, i) => i > 0 && p.punkte.every((pt) => innen(pt, dxfListe[0].punkte)));
+  const wahl = dxfListe.map((p, i) => `<option value="${i}">${esc(p.layer)} · ${p.punkte.length} Punkte</option>`).join("");
+  $("dxfG").innerHTML = wahl; $("dxfH").innerHTML = `<option value="-1">keines</option>` + wahl; $("dxfG").value = 0; $("dxfH").value = hi;
+  $("dxfmeldung").textContent = `${dxfListe.length} geschlossene Linienzüge gelesen. Vorschlag: der größte als Grundstück, der größte darin als Haus. Straßen, Wandhöhe und Dach bitte ergänzen.`;
+  dxfSetze(0, hi);
+}
+$("dxf").addEventListener("change", (e) => { ladeDxf(e.target.files[0]); e.target.value = ""; });
+let ueber = 0; // Datei über der Seite
+addEventListener("dragenter", (e) => { e.preventDefault(); ueber++; document.body.classList.add("ziel"); });
+addEventListener("dragleave", () => { if (--ueber <= 0) { ueber = 0; document.body.classList.remove("ziel"); } });
+addEventListener("dragover", (e) => e.preventDefault());
+addEventListener("drop", (e) => { e.preventDefault(); ueber = 0; document.body.classList.remove("ziel"); ladeDxf(e.dataTransfer.files[0]); });
+
+// Kataster: Flurstück, Nachbarn und Gebäude holen; Straßen an den Kanten vorschlagen
+const hole = async (adresse) => { const r = await fetch(adresse); if (!r.ok) throw new Error(r.status); return katasterLies(await r.text()); };
+const AUSFALL = "Das Kataster ist gerade nicht erreichbar. Bitte später noch einmal versuchen oder den Lageplan als DXF laden.";
+const schritt = (n) => [...$("schritte").children].forEach((li, i) => { li.className = i < n ? "fertig" : i === n ? "laeuft" : ""; });
+function vorhangAuf(zustand, meldung = "") { // Einstieg zeigen: "leer", "link", "laedt", "wahl"; null gibt den Plan frei
+  vorhang = zustand;
+  $("auftaktmeldung").textContent = meldung;
+  $("auftaktmeldung").hidden = !meldung;
+  $("auftakttitel").textContent = { link: (linkZiel && linkZiel.ort) || "Ihr Grundstück", laedt: "Einen Moment …", wahl: "Welches Flurstück?" }[zustand] || "Was geht auf diesem Grundstück?";
+  $("auftakttext").textContent = zustand === "wahl" ? "Zu dieser Adresse gibt es mehrere Flurstücke."
+    : (zustand === "link" ? "Ein Klick zeigt" : "Adresse eintragen. Sekunden später sehen Sie") + " das Grundstück aus dem Kataster, den Bebauungsplan und das größte Haus je Geschosszahl, mit Stellplätzen und Spielfläche nach Münsteraner Satzung. Als DXF geht es weiter in Ihr CAD.";
+  zeichneBlatt();
+}
+const zumAnfang = (meldung) => vorhangAuf(linkZiel ? "link" : "leer", meldung);
+async function uebernimm(ich, vorweg = "") { // ein Flurstück aus dem Kataster: Nachbarn, Gebäude, Straßen und Bebauungsplan dazuholen, dann in den Plan
+  const m = $("katastermeldung"), xs = ich.ring.map((p) => p[0]), ys = ich.ring.map((p) => p[1]), x0 = Math.min(...xs), y0 = Math.min(...ys);
+  const kasten = [x0 - 40, y0 - 40, Math.max(...xs) + 40, Math.max(...ys) + 40].map(Math.round);
+  schritt(1);
+  const [flur, gebaeude] = await Promise.all([hole(katasterUrl("Flurstueck", kasten)), hole(katasterUrl("GebaeudeBauwerk", kasten))]);
+  schritt(2);
+  let plan = ""; // Bebauungspläne gibt es so nur für die Stadt Münster
+  a.bplan = null;
+  if (ich.felder.gemeinde === "Münster") try {
+    const eng = [x0, y0, Math.max(...xs), Math.max(...ys)].map(Math.round), [kraft, verfahren] = await Promise.all(["bplan2", "bplan1"].map(async (e) => bplanTreffer(ich.ring, await hole(bplanUrl(e, eng)))));
+    a.bplan = { kraft, verfahren };
+    if (kraft.length) a.planungsrecht = "bplan";
+    plan = kraft.length ? `Das Grundstück liegt im Bebauungsplan ${[...new Set(kraft.map((b) => b.nr))].join(", ")}; „Lage des Grundstücks“ ist darauf gestellt. ` : "Die Stadt zeigt hier keinen rechtskräftigen Bebauungsplan; „Lage des Grundstücks“ bitte selbst wählen. ";
+  } catch { plan = "Die Bebauungspläne der Stadt waren nicht abrufbar. "; }
+  const nachbarn = flur.filter((o) => o.felder.flstkennz !== ich.felder.flstkennz).map((o) => ({ ring: o.ring, nutzung: o.felder.tntxt || "" }));
+  const breiten = strassenVorschlag(ich.ring, nachbarn), um = ([x, y]) => [rund(x - x0), rund(y - y0)];
+  schritt(3);
+  beende();
+  a.grundstueck = ich.ring.map(um).map(([x, y], i) => ({ x, y, strasse: breiten[i] }));
+  a.umgebung = { flurstuecke: nachbarn.map((o) => o.ring.map(um)), gebaeude: gebaeude.map((o) => o.ring.map(um)) };
+  a.haus = []; // kein Haus vorgeben: Die Stufen zeigen, was passt
+  a.nord = true; // Kataster-Koordinaten: Norden ist oben
+  a.ursprung = [x0, y0];
+  a.kataster = { gemarkung: ich.felder.gemarkung || a.kataster.gemarkung, flur: Number(ich.felder.flur) || null, nummer: Number(ich.felder.flstnrzae) || null,
+    kennzeichen: ich.felder.flstkennz || null, lage: ich.felder.lagebeztxt || null, stand: (ich.felder.aktualit || "").slice(0, 10) || null };
+  const n = breiten.filter((b) => b !== null).length;
+  m.textContent = `Geholt: ${Math.round(Math.abs(flaeche(ich.ring)))} m², ${ich.felder.lagebeztxt || "ohne Lagebezeichnung"}. `
+    + vorweg
+    + (n ? `An ${n} ${n === 1 ? "Kante" : "Kanten"} liegt laut Kataster eine Verkehrsfläche; die Breite ist als Vorschlag eingetragen, bitte prüfen. ` : "Keine Verkehrsfläche an den Kanten erkannt. ")
+    + plan + `Stand des Katasters: ${(ich.felder.aktualit || "").slice(0, 10)}.`;
+  m.hidden = false;
+  linkZiel = null; vorhang = null;
+  neu();
+  auftritt();
+}
+async function sucheFlurstueck(wo, keinTreffer) { // wo: { gemarkung, flur, nummer } oder { kennzeichen }
+  schritt(0); vorhangAuf("laedt");
+  try {
+    const treffer = await hole(katasterUrl("Flurstueck", wo));
+    if (!treffer.length) { linkZiel = null; zumAnfang(keinTreffer); return; }
+    await uebernimm(treffer[0], treffer.length > 1 ? `Es gibt ${treffer.length} Flurstücke mit dieser Nummer; genommen ist das erste. ` : "");
+  } catch { zumAnfang(AUSFALL); }
+}
+let adressListe = [];
+async function sucheAdresse(text) {
+  if (text.trim().length < 3) { zumAnfang("Bitte Straße und Hausnummer eintragen."); return; }
+  schritt(0); vorhangAuf("laedt");
+  try {
+    const t = adressTreffer(text, await hole(katasterUrl("Flurstueck", { adresse: text, gemeinde: "Münster" })));
+    if (!t.alle.length) { zumAnfang("Zu dieser Adresse findet das Kataster in Münster kein Flurstück. Bitte Straße und Hausnummer ausschreiben, zum Beispiel „Hölderlinweg 5“."); return; }
+    if (t.genau.length === 1 || t.alle.length === 1) { await uebernimm(t.genau[0] || t.alle[0]); return; }
+    adressListe = [...t.genau, ...t.alle.filter((o) => !t.genau.includes(o))];
+    $("adresstreffer").innerHTML = `<option value="">Bitte wählen (${adressListe.length}${adressListe.length === 60 ? ", mehr zeigt das Kataster nicht auf einmal" : ""})</option>` + adressListe.map((o, i) => `<option value="${i}">${esc(o.felder.lagebeztxt || "ohne Adresse")} · Flur ${esc(o.felder.flur)}, Flurstück ${esc(o.felder.flstnrzae)} · ${Math.round(Math.abs(flaeche(o.ring)))} m²</option>`).join("");
+    vorhangAuf("wahl");
+  } catch { zumAnfang(AUSFALL); }
+}
+$("katasterknopf").addEventListener("click", () => {
+  const k = a.kataster;
+  if (!k.gemarkung || k.flur == null || k.nummer == null) { $("katastermeldung").hidden = false; $("katastermeldung").textContent = "Bitte Gemarkung, Flur und Flurstück eintragen."; return; }
+  sucheFlurstueck({ gemarkung: k.gemarkung, flur: k.flur, nummer: k.nummer }, "Kein Flurstück mit diesen Angaben gefunden. Die Gemarkung bitte genau wie im Kataster schreiben, zum Beispiel „Münster“ oder „Hiltrup“.");
+});
+$("linkknopf").addEventListener("click", () => sucheFlurstueck({ kennzeichen: linkZiel.kennzeichen }, "Dieses Flurstück gibt es im Kataster so nicht mehr. Bitte über die Adresse suchen."));
+$("adressknopf").addEventListener("click", () => sucheAdresse($("adresse").value));
+$("adressknopf0").addEventListener("click", () => sucheAdresse($("adresse0").value));
+for (const [feld, knopf] of [["adresse", "adressknopf"], ["adresse0", "adressknopf0"]]) $(feld).addEventListener("keydown", (e) => { if (e.key === "Enter") { e.preventDefault(); $(knopf).click(); } });
+$("adresstreffer").addEventListener("change", async (e) => {
+  const ich = e.target.value === "" ? null : adressListe[Number(e.target.value)];
+  if (!ich) return;
+  schritt(0); vorhangAuf("laedt");
+  try { await uebernimm(ich); } catch { zumAnfang(AUSFALL); }
+});
+$("auftaktzu").addEventListener("click", () => { linkZiel = null; vorhangAuf(null); });
+$("starthand").addEventListener("click", () => document.querySelector('[data-neu="grundstueck"]').click());
+$("teilen").addEventListener("click", async () => { // nur das Flurstück, nicht die Planung
+  const ziel = location.href.split("#")[0] + linkSchreibe(a.kataster.kennzeichen, a.kataster.lage);
+  try { await navigator.clipboard.writeText(ziel); $("teilen").textContent = "Link kopiert"; setTimeout(() => { $("teilen").textContent = "Link kopieren"; }, 1800); } catch { prompt("Link zu diesem Grundstück:", ziel); }
+});
+$("rechtknopf").addEventListener("click", () => $("recht").showModal());
+$("dxfaus").addEventListener("click", () => { // Datei entsteht auf diesem Gerät
+  const L = lage(a), link = document.createElement("a");
+  if (!L) return;
+  link.href = URL.createObjectURL(new Blob([dxfSchreibe(L, a.ursprung || [0, 0], a.umgebung)], { type: "application/dxf" }));
+  link.download = "planungscheck.dxf";
+  link.click();
+  setTimeout(() => URL.revokeObjectURL(link.href), 1000);
+});
+
+// Einstieg, Rückgängig, Drucken
+$("startdxf").addEventListener("click", () => $("dxf").click());
+$("startbeispiel").addEventListener("click", () => $("beispiel").click());
+$("drucken").addEventListener("click", () => print());
+function zurueck() { beende(); if (verlauf.length) { stand = verlauf.pop(); a = JSON.parse(stand); neu(); } }
+$("zurueck").addEventListener("click", zurueck);
+addEventListener("keydown", (e) => { if ((e.metaKey || e.ctrlKey) && e.key === "z" && !e.shiftKey && !/^(INPUT|SELECT|TEXTAREA)$/.test(e.target.tagName)) { e.preventDefault(); zurueck(); } });
+for (const id of ["dxfG", "dxfH"]) $(id).addEventListener("change", () => dxfSetze(Number($("dxfG").value), Number($("dxfH").value)));
+
+const zeile = (soll, einheit, titel, text, quelle) => `<div class="zeile">`
+  + (einheit === null ? `<div class="label">${soll}</div>` : `<div class="soll">${soll}<small>${einheit}</small></div>`)
+  + `<div><h3>${titel}</h3><p>${text}</p>${quelle ? `<p class="quelle">${quelle}</p>` : ""}</div></div>`;
+const abschnitt = (titel, zeilen) => zeilen.length ? `<section><h2>${titel}</h2>${zeilen.join("")}</section>` : "";
+
+function zeichneBlatt() {
+  const fehlt = [], soll = [], paket = [], frueh = [];
+
+  const L = lage(a);
+  $("lage").hidden = !L;
+  const zustand = vorhang || (L ? null : "leer");
+  $("auftakt").hidden = !zustand;
+  if (zustand) $("auftakt").dataset.zustand = zustand;
+  $("auftaktzu").hidden = !L || zustand === "laedt";
+  $("blatt").toggleAttribute("data-urteil", !!L && !L.fehlt.length);
+  if (!L || L.fehlt.length) fehlt.push(`Lageplan und Abstände (${L ? L.fehlt.join(", ") : "Grundstück"})`);
+  const abstaende = L ? zeichneLage(L) : [];
+  const schluessel = JSON.stringify([a.grundstueck, a.annahmen, a.baugebiet, a.oepnv]); // nur neu rechnen, wenn sich das Grundstück ändert, nicht beim Ziehen des Hauses
+  if (schluessel !== passt.schluessel && !(zug && zug.art === "g")) passt = { schluessel, P: potenzial(a) };
+  const P = passt.P;
+  $("passt").hidden = !P;
+  if (P) {
+    const meiste = Math.max(...P.zeilen.map((r) => r.wohnungen)), beste = P.zeilen.find((r) => r.wohnungen === meiste && meiste > 0);
+    $("spiel").hidden = !P.zeilen.some((r) => r.haus);
+    $("passtzeilen").innerHTML = P.zeilen.map((r) => `<div class="stufe${r === beste ? " beste" : ""}" data-zeile="${r.geschosse}"><strong>${r.geschosse} ${r.geschosse === 1 ? "Geschoss" : "Geschosse"}</strong>`
+      + (r.haus ? `<span class="we">${r.wohnungen} ${r.wohnungen === 1 ? "Wohnung" : "Wohnungen"}</span><div class="balken"><i style="width:${meiste ? 100 * r.wohnungen / meiste : 0}%"></i></div>`
+          + `<p class="klein">Haus ${de(r.breite)} × ${de(r.haustiefe)} m · Abstand ${de(r.tiefe)} m · ${r.wohnflaeche} m² Wohnfläche<br>${r.kfz} Kfz · ${r.raeder ?? 0} Räder${r.spiel ? ` · ${r.spiel.flaeche} m² Spielfläche` : ""}${r === beste ? " · meiste Wohnungen" : ""}</p>`
+          + `<button type="button" data-nimm="${r.geschosse}">In den Plan</button>`
+        : `<span class="we">–</span><p class="klein">Abstand ${de(r.tiefe)} m: Hier passt kein Haus von mindestens 4 m Breite.</p>`) + `</div>`).join("");
+    const an = P.annahmen;
+    $("passttext").textContent = `Stufe berühren: Der Plan zeigt, wo ein Haus dieser Höhe stehen darf, und das größte Haus. Gerechnet mit Flachdach, ${de(an.geschosshoehe)} m je Geschoss, Haus höchstens ${de(an.haustiefe)} m tief, `
+      + `${an.anteil} % der Geschossfläche als Wohnfläche, Wohnungen zu ${an.wohnung} m², ${{ allgemein: "Wohn-, Misch- oder sonstiges Gebiet", gewerbe_industrie: "Gewerbe- oder Industriegebiet", kern: "Kerngebiet" }[P.baugebiet]}`
+      + `${a.baugebiet ? "" : " (angenommen, links noch nicht gewählt)"}, Stellplätze ${a.oepnv ? OEPNV_TEXT[a.oepnv] : "ohne Abschlag für Bus und Bahn"}. Die Erleichterung für kleine Wohngebäude (pauschal 3 m) ist nicht eingerechnet, `
+      + `Flächen für Stellplätze und Spielplatz auch nicht. Bebauungsplan oder Umgebung können weniger zulassen: Die Tabelle zeigt nur, was Abstandsflächen und die Münsteraner Satzungen hergeben.`;
+  }
+
+  $("grund").hidden = !L;
+  if (L) { // Grundstück und Überschlag: das Erste, was man nach dem Abruf sieht
+    const k = a.kataster, meiste = P ? Math.max(...P.zeilen.map((r) => r.wohnungen)) : 0, beste = meiste > 0 && P.zeilen.find((r) => r.wohnungen === meiste);
+    const plaene = a.bplan ? [...new Set(a.bplan.kraft.map((b) => b.nr))] : [], datum = (d) => d.split("-").reverse().join(".");
+    const planlink = a.bplan ? a.bplan.kraft.filter((b, i, alle) => b.url && alle.findIndex((c) => c.nr === b.nr) === i).map((b) => `<a href="${esc(b.url)}" target="_blank" rel="noopener">Plan ${esc(b.nr)} bei der Stadt</a>`).join(", ") : "";
+    $("grund").innerHTML = `<span class="label">Grundstück</span>` + (k.kennzeichen ? `<div class="name">${esc(k.lage || "Flurstück ohne Adresse")}</div>`
+        + `<p class="klein">Gemarkung ${esc(k.gemarkung)} · Flur ${esc(k.flur)} · Flurstück ${esc(k.nummer)}${plaene.length ? ` · Bebauungsplan ${esc(plaene.join(", "))}` : ""}${k.stand ? ` · Kataster vom ${esc(datum(k.stand))}` : ""}</p>` : "")
+      + `<div class="kacheln"><div><b>${Math.round(Math.abs(flaeche(L.g)))}<small>m²</small></b><span class="label">Grundstück</span></div>`
+      + (beste ? `<div class="akzent"><b>${beste.wohnungen}</b><span class="label">Wohnungen höchstens</span></div><div><b>${beste.wohnflaeche}<small>m²</small></b><span class="label">Wohnfläche höchstens</span></div>` : "") + `</div>`
+      + (beste ? `<p class="klein">Obergrenze nur nach den Abständen zur Grenze: ${beste.geschosse} ${beste.geschosse === 1 ? "Geschoss" : "Geschosse"}, mit den Annahmen links. ${planlink ? `Was der Bebauungsplan festsetzt, prüft die Seite nicht: ${planlink}.` : "Bebauungsplan oder Umgebung können weniger zulassen."}</p>` : "");
+  }
+
+  const wohnungen = a.wohnungen.filter((w) => Number.isInteger(w.anzahl) && w.anzahl > 0 && istZahl(w.wohnflaeche));
+  if (!wohnungen.length) fehlt.push("Stellplätze, Fahrräder, Spielplatz (Wohnungen)");
+  else {
+    if (!a.oepnv) fehlt.push("Kfz-Stellplätze (Bus und Bahn)");
+    else {
+      const kfz = stellplaetzeKfz(wohnungen, a.oepnv);
+      soll.push(zeile(kfz.mit_abschlag, "Kfz", "Stellplätze", `${kfz.ohne_abschlag} nach Wohnungsgrößen, ${OEPNV_TEXT[a.oepnv]}. Im Lageplan zählen und gegen diese Zahl halten. Auf dem Grundstück oder höchstens 300 m zu Fuß entfernt und rechtlich gesichert.`, "Stellplatzsatzung Münster, Anlage 1"));
+    }
+    const rad = fahrradabstellplaetze(wohnungen);
+    if (rad !== null) soll.push(zeile(rad, "Räder", "Fahrradabstellplätze", "Ein Platz je 30 m² Wohnfläche, nur auf dem Grundstück. Je Rad 0,75 × 2,00 m, Fahrgasse 1,80 m, jeder zehnte Platz für ein Sonderrad 1,30 × 2,50 m. Ob der Besucheranteil von 20 % in der Zahl steckt, ist noch ungeprüft.", "Stellplatzsatzung Münster, Anlage 2"));
+    const quelleSpiel = "Bauordnung NRW, Kinderspielplätze; Kinderspielplatzsatzung Münster von 1971 (ob sie unverändert gilt, ist ungeprüft)";
+    if (!a.vorhaben) fehlt.push("Spielplatz (Art des Vorhabens)");
+    else if (a.vorhaben === "errichtung" && anzahlWohnungen(wohnungen) === 3) soll.push(zeile("Klären", null, "Spielplatz für Kleinkinder", "Die Bauordnung verlangt einen Spielplatz erst ab vier Wohnungen, die Münsteraner Satzung von 1971 nennt schon mehr als zwei. Bitte mit dem Bauamt klären.", quelleSpiel));
+    const spiel = a.vorhaben ? spielplatz(wohnungen, a.einraumwohnungen || 0, a.vorhaben) : null;
+    if (spiel) soll.push(zeile(spiel.flaeche, "m²", "Spielfläche für Kleinkinder", `Fünf Quadratmeter je Wohnung, mindestens 25. Dazu ${spiel.spielgeraete} ${spiel.spielgeraete === 1 ? "Spielgerät" : "Spielgeräte"} und ${spiel.sitzgelegenheiten} Sitzgelegenheiten. Auf dem Grundstück oder in unmittelbarer Nähe, besonnt, einsehbar, höchstens 100 m entfernt, barrierefrei erreichbar. Entfällt, wenn nebenan ein nutzbarer Spielplatz liegt oder entsteht.`, quelleSpiel));
+  }
+
+  const baeume = a.baeume.filter((b) => istZahl(b.stammumfang_cm));
+  if (baeume.length && !a.planungsrecht) fehlt.push("Baumschutz (Lage des Grundstücks)");
+  else {
+    const g = baeume.filter((b) => geschuetzt(b, a.planungsrecht)), name = (b) => esc(b.art || "Baum");
+    if (g.length) paket.push(zeile(g.length, g.length === 1 ? "Baum" : "Bäume", "Bestandsplan mit geschützten Bäumen", `Geschützt nach Ihren Angaben: ${g.map((b) => `${name(b)} (${b.stammumfang_cm} cm)`).join(", ")}. Geschützt ist ein Baum ab 100 cm Stammumfang, eine Eibe ab 60 cm. Je Baum Art, Standort, Höhe, Stammumfang und Kronendurchmesser eintragen, auch betroffene Bäume beim Nachbarn und im öffentlichen Raum.`, "Baumschutzsatzung Münster"));
+    const f = g.filter((b) => b.faellen);
+    if (f.length) paket.push(zeile(f.length, f.length === 1 ? "Antrag" : "Anträge", "Antrag zu geschützten Bäumen beifügen", `Für ${f.map(name).join(", ")}: mit dem Bauantrag einreichen, Formular der Stadt (Stand April 2026). Aus der Praxis: je Baum ein eigener Antrag; die Satzung sagt das nicht ausdrücklich.`, "Baumschutzsatzung Münster"));
+  }
+  if (a.denkmal) paket.push(zeile("Denkmal", null, "Erlaubnis der Denkmalbehörde", "Nötig, wenn Sie am Denkmal etwas verändern oder in seiner engeren Umgebung bauen und sich das auf Substanz oder Erscheinungsbild auswirken kann. Dachaufbauten früh abstimmen.", "Denkmalschutzgesetz NRW"));
+
+  const zw = a.zweiter_rettungsweg, offen = [];
+  if (!zw && !a.rueckwaertig) offen.push("zweiter Rettungsweg");
+  if (zw === "feuerwehr" || a.rueckwaertig) {
+    if (a.bruestung_anleiterstelle == null) offen.push("Brüstungshöhe");
+    if (a.entfernung_verkehrsflaeche == null) offen.push("Entfernung zur Straße");
+  }
+  if (offen.length) fehlt.push(`Feuerwehr (${offen.join(", ")})`);
+  else {
+    const f = feuerwehr(zw, a.bruestung_anleiterstelle, a.rueckwaertig, a.entfernung_verkehrsflaeche);
+    frueh.push(zeile("Feuerwehr", null, "Zugang und Zufahrt", f.saetze.join(" ") + (f.betroffen ? " Aus der Praxis: Anleiterbarkeit und Aufstellflächen früh mit der Feuerwehr abstimmen, laut einem Münsteraner Büro einer der größten Zeitfresser." : ""), "Bauordnung NRW, Zugänge, Zufahrten und Rettungswege"));
+  }
+  if (a.bplan) { // nur nach einem Abruf in Münster
+    const quelle = "Stadt Münster, Bebauungspläne (Datenlizenz Deutschland Namensnennung 2.0)", datum = (d) => d.split("-").reverse().join(".");
+    const lage = (b) => `Das Grundstück liegt ${b.ganz ? "ganz" : "zum Teil"} im Plangebiet.`, link = (b) => b.url ? ` <a href="${esc(b.url)}" target="_blank" rel="noopener">Plan bei der Stadt ansehen</a>` : "";
+    for (const b of a.bplan.kraft) frueh.push(zeile("B-Plan", null, `Bebauungsplan ${esc(b.nr)}: ${esc(b.name)}`, `Rechtskräftig seit ${datum(b.datum)}. ${lage(b)} Baugrenzen, Baulinien und die übrigen Festsetzungen stehen im Plan; diese Seite prüft sie nicht.${link(b)}`, quelle));
+    for (const b of a.bplan.verfahren) frueh.push(zeile("In Arbeit", null, `Bebauungsplan ${esc(b.nr)} im Verfahren: ${esc(b.name)}`, `${lage(b)} Hier wird ein Plan aufgestellt oder geändert. Bitte früh bei der Stadt nachfragen, was das für Ihr Vorhaben heißt.${link(b)}`, quelle));
+    if (!a.bplan.kraft.length) frueh.push(zeile("B-Plan", null, "Kein rechtskräftiger Bebauungsplan gefunden", "Der Dienst der Stadt zeigt für dieses Flurstück keinen. Verbindlich ist nur die Auskunft der Stadt.", quelle));
+  }
+  if (a.mischnutzung) frueh.push(zeile("Mischnutzung", null, "Anlieferung und Schallschutz", "Im Plan prüfen: Anlieferzone und Schallschutz zu den Wohnungen sind dargestellt.", "Gespräch mit einem Münsteraner Büro, November 2026, nicht bestätigt"));
+  frueh.push(zeile("Bauportal", null, "Haken zum Brandschutz setzen", "Er lässt sich nach dem Absenden nicht mehr ändern. Bitte vor dem Absenden im Portal kontrollieren.", "Gespräch mit einem Münsteraner Büro, November 2026, nicht bestätigt"));
+
+  const we = anzahlWohnungen(wohnungen), kopf = (l, w) => `<div><span class="label">${l}</span><span class="wert">${w}</span></div>`;
+  $("plankopf").innerHTML = kopf("Vorhaben", { errichtung: "Neubau", aenderung: "Änderung, Umbau" }[a.vorhaben] || "offen")
+    + kopf("Gebäude", [a.gebaeudeklasse && `GK ${a.gebaeudeklasse}`, a.oberirdische_geschosse && `${a.oberirdische_geschosse} Geschosse`, we && `${we} WE`].filter(Boolean).join(" · ") || "offen")
+    + kopf("Stand", `<span class="zahl">${new Date().toLocaleDateString("de-DE", { day: "2-digit", month: "2-digit", year: "numeric" })}</span>`);
+
+  $("rest").innerHTML = (!L ? "" : abschnitt("Nachweis je Wand", abstaende) // ohne Grundstück nur der Fuß
+    + abschnitt("Soll-Zahlen · gegen Ihren Plan halten", soll) + abschnitt("Gehört ins Paket", paket) + abschnitt("Früh klären", frueh)
+    + (fehlt.length ? `<section><h2>Noch offen</h2><p class="klein">Für diese Punkte fehlen Angaben: ${fehlt.join("; ")}.</p></section>` : ""))
+    + `<footer class="fuss"><p>Gerechnet nach dem Wortlaut der Bauordnung NRW und der Münsteraner Satzungen, mit Ihren Angaben. Kein Sprachmodell entscheidet; jede Zahl folgt einer Regel.</p>`
+    + `<p>Diese Seite rechnet auf Ihrem Gerät und lädt nichts hoch. Nur wenn Sie ein Flurstück abrufen, fragt sie das Kataster des Landes NRW und, in Münster, die Bebauungspläne der Stadt; dabei gehen Adresse oder Flurstücksnummer und die Lage des Grundstücks an Land und Stadt. Ihre Angaben merkt sich nur dieser Browser; „Leeren“ löscht sie.</p>`
+    + `<p>Katasterdaten: Land NRW, Datenlizenz Deutschland Zero. Bebauungspläne: Stadt Münster, Datenlizenz Deutschland Namensnennung 2.0.</p>`
+    + `<p>Entwurf, nicht abgenommen. Ersetzt weder Ihre Planung noch die Prüfung durch das Bauamt.</p></footer>`;
+
+  if (!zug) { // Stand für „Rückgängig“ und fürs nächste Öffnen merken; beim Ziehen erst am Ende
+    const jetzt = JSON.stringify(a);
+    if (jetzt !== stand) { verlauf.push(stand); if (verlauf.length > 100) verlauf.shift(); stand = jetzt; }
+    merk.schreib("planungscheck", stand);
+  }
+  $("zurueck").disabled = !verlauf.length;
+  $("dxfaus").disabled = !L;
+  const raute = linkSchreibe(a.kataster.kennzeichen, a.kataster.lage);
+  $("teilen").disabled = !raute;
+  if (!zug && !linkZiel && raute !== rauteStand) { rauteStand = raute; try { history.replaceState(null, "", raute || location.pathname + location.search); } catch { /* als Datei geöffnet: dann ohne */ } }
+}
+
+fuelleFormular();
+if (linkZiel) vorhangAuf("link"); else vorhangAuf(null);
+</script>
+</body>
+</html>
