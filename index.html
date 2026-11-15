@@ -192,7 +192,7 @@ body.ziel::after { content: "DXF-Datei hier ablegen"; position: fixed; inset: 12
 @keyframes ein { from { opacity: 0; } }
 #plan .spur { opacity: 0; }
 @keyframes spur { from { stroke-dashoffset: 1; opacity: 1; } 75% { opacity: 1; } to { stroke-dashoffset: 0; opacity: 0; } }
-#plan.auftritt .umfeld { animation: ein .9s .6s both; } #plan.auftritt .grenze { animation: ein .4s .9s both; } #plan.auftritt .spur { animation: spur 1.3s ease-out both; }
+#plan.auftritt .umfeld { animation: ein .9s .6s both; } #plan.auftritt .grenze, #plan.auftritt [data-g] { animation: ein .4s .9s both; } #plan.auftritt .spur { animation: spur 1.3s ease-out both; }
 @media (prefers-reduced-motion: reduce) { #plan.auftritt * { animation: none !important; } #schritte li.laeuft::before { animation: none; } }
 /* Grundstück und Überschlag */
 #drehen { display: contents; }
@@ -227,7 +227,10 @@ dialog h2 { border: 0; padding: 0; margin: 14px 0 4px; } dialog h2:first-child {
 @media print {
   body { background: #fff; } .app { display: block; height: auto; } #angaben, .ecke, button, .suchzeile, #auftakt, dialog, #koord { display: none !important; }
   #buehne { height: 115mm; border: 1px solid var(--raster); break-inside: avoid; } #plan [data-g], #plan [data-h], #plan [data-dreh] { display: none; }
-  #blatt { overflow: visible; border: 0; padding: 8mm 0 0; } .rechenweg > * { display: block; } .statusleiste { border: 0; padding: 4px 0; }
+  #blatt { overflow: visible; border: 0; padding: 8mm 0 0; } .statusleiste { border: 0; padding: 4px 0; } .statusleiste > span + span { border: 0; margin: 0; padding: 0; }
+  #weg, .plan .klein, .legende, #passtzeilen .klein:has(button) { display: none; } /* Bedienhinweise gehören nicht aufs Blatt */
+  .weg, .zeile, .kacheln, .stufe, .plan, .nachweis tr, .rechenweg p, .fuss { break-inside: avoid; } h2 { break-after: avoid; }
+  .nachfrage input { border: 0; padding: 0; }
 }
 </style>
 </head>
@@ -1023,8 +1026,8 @@ function zeichnePlan(L, geist, schau = null) {
     const alle = [...L.g, ...L.strassen.flatMap((s) => [[s.a[0] + s.n[0] * s.w, s.a[1] + s.n[1] * s.w], [s.b[0] + s.n[0] * s.w, s.b[1] + s.n[1] * s.w]])];
     const um = a.umgebung.flurstuecke.length ? 10 : 3; // mit Nachbarn aus dem Kataster etwas mehr Umgebung zeigen
     const xs = alle.map((p) => p[0]), ys = alle.map((p) => p[1]), b = Math.max(...xs) - Math.min(...xs) + 2 * um, t = Math.max(...ys) - Math.min(...ys) + 2 * um;
-    const r = $("buehne").getBoundingClientRect(), hoehe = r.width > 0 && r.height > 120 ? 640 * r.height / r.width : 560; // Zeichnung füllt die Fläche
-    ansicht = { k: Math.min(600 / b, (hoehe - 70) / t), cx: (Math.max(...xs) + Math.min(...xs)) / 2, cy: (Math.max(...ys) + Math.min(...ys)) / 2, hoehe };
+    const r = $("buehne").getBoundingClientRect(), hoehe = druckt ? 387 : r.width > 0 && r.height > 120 ? 640 * r.height / r.width : 560; // Zeichnung füllt die Fläche; im Druck 190 × 115 mm
+    ansicht = { k: Math.min(600 / b, (hoehe - (druckt ? 30 : 70)) / t), cx: (Math.max(...xs) + Math.min(...xs)) / 2, cy: (Math.max(...ys) + Math.min(...ys)) / 2, hoehe };
   }
   const { k, cx, cy, hoehe } = ansicht, px = (x) => 320 + (x - cx) * k, py = (y) => hoehe / 2 - 6 + (cy - y) * k;
   const P = (v) => v.map(([x, y]) => `${px(x).toFixed(1)},${py(y).toFixed(1)}`).join(" ");
@@ -1173,7 +1176,7 @@ function ort(e) { // Zeiger in Metern
 }
 
 // Bewegte Bilder: bild(w) mit w von 0 bis 1. Wer weniger Bewegung wünscht, sieht gleich das Ende.
-let film = null, auftrittUhr = 0;
+let film = null, auftrittUhr = 0, druckt = false;
 const ruhig = matchMedia("(prefers-reduced-motion: reduce)").matches;
 function beende() { clearTimeout(auftrittUhr); $("plan").classList.remove("auftritt"); if (!film) return; cancelAnimationFrame(film.id); const f = film; film = null; f.bild(1); if (f.ende) f.ende(); }
 function spiele(dauer, bild, ende, weich = true) {
@@ -1183,7 +1186,7 @@ function spiele(dauer, bild, ende, weich = true) {
   setTimeout(() => { if (film === dieser) beende(); }, dauer + 500); // läuft der Film nicht, etwa im Hintergrund, kommt trotzdem das Ende
   const schritt = (jetzt) => {
     if (!film) return;
-    const t = Math.min(1, (jetzt - start) / dauer);
+    const t = Math.max(0, Math.min(1, (jetzt - start) / dauer)); // die Bildzeit kann knapp vor dem Start liegen
     bild(weich ? (t < 0.5 ? 2 * t * t : 1 - (2 - 2 * t) ** 2 / 2) : t);
     if (t < 1) film.id = requestAnimationFrame(schritt); else { film = null; if (ende) ende(); }
   };
@@ -1315,7 +1318,7 @@ addEventListener("dragover", (e) => e.preventDefault());
 addEventListener("drop", (e) => { e.preventDefault(); ueber = 0; document.body.classList.remove("ziel"); ladeDxf(e.dataTransfer.files[0]); });
 
 // Kataster: Flurstück, Nachbarn und Gebäude holen; Straßen an den Kanten vorschlagen
-const hole = async (adresse) => { const r = await fetch(adresse); if (!r.ok) throw new Error(r.status); return katasterLies(await r.text()); };
+const hole = async (adresse) => { const r = await fetch(adresse, { signal: AbortSignal.timeout(15000) }); if (!r.ok) throw new Error(r.status); return katasterLies(await r.text()); };
 const AUSFALL = "Das Kataster ist gerade nicht erreichbar. Bitte später noch einmal versuchen oder den Lageplan als DXF laden.";
 const schritt = (n) => [...$("schritte").children].forEach((li, i) => { li.className = i < n ? "fertig" : i === n ? "laeuft" : ""; });
 function vorhangAuf(zustand, meldung = "") { // Einstieg zeigen: "leer", "link", "laedt", "wahl"; null gibt den Plan frei
@@ -1422,6 +1425,9 @@ $("dxfaus").addEventListener("click", () => { // Datei entsteht auf diesem Gerä
 $("startdxf").addEventListener("click", () => $("dxf").click());
 $("startbeispiel").addEventListener("click", () => $("beispiel").click());
 $("drucken").addEventListener("click", () => print());
+let vorDruck = []; // fürs Blatt: Plan in der Form des Papiers, Rechenwege aufgeklappt; danach alles wie vorher
+addEventListener("beforeprint", () => { beende(); druckt = true; ansicht = null; zeichneBlatt(); vorDruck = [...document.querySelectorAll("details.rechenweg:not([open])")]; vorDruck.forEach((d) => { d.open = true; }); });
+addEventListener("afterprint", () => { druckt = false; ansicht = null; vorDruck.forEach((d) => { d.open = false; }); zeichneBlatt(); });
 function zurueck() { beende(); if (verlauf.length) { stand = verlauf.pop(); a = JSON.parse(stand); neu(); } }
 $("zurueck").addEventListener("click", zurueck);
 addEventListener("keydown", (e) => { if ((e.metaKey || e.ctrlKey) && e.key === "z" && !e.shiftKey && !/^(INPUT|SELECT|TEXTAREA)$/.test(e.target.tagName)) { e.preventDefault(); zurueck(); } });
@@ -1553,7 +1559,7 @@ function zeichneBlatt() {
   $("rest").innerHTML = (!L || !L.h.length ? "" : abschnitt("Nachweis je Wand", abstaende) // ohne Haus nur der Fuß
     + abschnitt("Soll-Zahlen · gegen Ihren Plan halten", soll) + abschnitt("Gehört ins Paket", paket) + abschnitt("Früh klären", frueh)
     + (fehlt.length ? `<section><h2>Noch offen</h2><p class="klein">Für diese Punkte fehlen Angaben: ${fehlt.join("; ")}.</p></section>` : ""))
-    + `<footer class="fuss"><p>Jede Zahl folgt einer Regel aus der Bauordnung NRW oder einer Münsteraner Satzung; kein Sprachmodell entscheidet. Die Seite rechnet auf Ihrem Gerät.</p>`
+    + `<footer class="fuss"><p>Jede Zahl folgt einer Regel aus der Bauordnung NRW oder einer Münsteraner Satzung; kein Sprachmodell entscheidet. Die Seite rechnet auf Ihrem Gerät. Stand der Bauordnung NRW: Fassung ab 01.09.2026.</p>`
     + `<p>Entwurf, nicht abgenommen. Ersetzt weder Ihre Planung noch die Prüfung durch das Bauamt.</p>`
     + `<p>Daten: Land NRW (Datenlizenz Deutschland Zero), Stadt Münster (Datenlizenz Deutschland Namensnennung 2.0).</p></footer>`;
 
