@@ -223,7 +223,7 @@ dialog h2 { border: 0; padding: 0; margin: 14px 0 4px; } dialog h2:first-child {
   #buehne { order: 1; height: 62vh; min-height: 320px; } .statusleiste { order: 2; overflow-x: auto; } #blatt { order: 3; overflow: visible; border: 0; } #angaben { order: 4; overflow: visible; border: 0; border-top: 1px solid var(--raster); }
   .statusleiste .rechts { display: none; }
 }
-@media (max-width: 700px) { #ebenen, .tafel .trenner, #koord { display: none; } input, select { font-size: 16px; } .leiste .suchzeile { order: 2; flex-basis: 100%; max-width: none; } .leiste .knoepfe { order: 3; flex-wrap: nowrap; overflow-x: auto; max-width: 100%; } .kacheln b { font-size: 18px; } }
+@media (max-width: 700px) { #ebenen, .tafel .trenner, #koord { display: none; } #kennzahl { margin: 0; padding: 0; border: 0; } input, select { font-size: 16px; } .leiste .suchzeile { order: 2; flex-basis: 100%; max-width: none; } .leiste .knoepfe { order: 3; flex-wrap: nowrap; overflow-x: auto; max-width: 100%; } .kacheln b { font-size: 18px; } }
 @media print {
   body { background: #fff; } .app { display: block; height: auto; } #angaben, .ecke, button, .suchzeile, #auftakt, dialog, #koord { display: none !important; }
   #buehne { height: 115mm; border: 1px solid var(--raster); break-inside: avoid; } #plan [data-g], #plan [data-h], #plan [data-dreh] { display: none; }
@@ -1076,6 +1076,9 @@ function zeichnePlan(L, geist, schau = null) {
     }
   }
   const c = mittel(L.h);
+  const finger = matchMedia("(any-pointer: coarse)").matches ? 20 * 640 / ($("plan").getBoundingClientRect().width || 640) : 0; // Finger treffen keine 5 px: unsichtbare Fläche von 40 px um jeden Griff
+  const flaeche = ([x, y], wie) => `<circle cx="${px(x)}" cy="${py(y)}" r="${finger.toFixed(1)}" fill="transparent" ${wie}/>`;
+  if (finger) t += L.g.map((p, i) => flaeche(p, `data-g="${i}"`)).join("") + (schau ? [] : L.h).map((p, i) => flaeche(p, `data-h="${i}"`)).join("") + (!L.h.length || schau ? "" : flaeche(c, "data-dreh"));
   t += L.g.map(([x, y], i) => `<rect x="${px(x) - 4}" y="${py(y) - 4}" width="8" height="8" fill="var(--papier)" stroke="var(--tusche)" data-g="${i}"><title>Grenzpunkt ${i + 1} ziehen</title></rect>`).join("")
     + (schau ? [] : L.h).map(([x, y], i) => `<circle data-ecke cx="${px(x)}" cy="${py(y)}" r="4.5" fill="var(--papier)" stroke="var(--tusche)" stroke-width="1.5" data-h="${i}"><title>Hausecke ${i + 1} ziehen</title></circle>`).join("")
     + (!L.h.length || schau ? "" : `<circle cx="${px(c[0])}" cy="${py(c[1])}" r="9" fill="var(--papier)" stroke="var(--tusche)" stroke-width="1.5" stroke-dasharray="11 3" data-dreh><title>Haus drehen</title></circle>`);
