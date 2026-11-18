@@ -211,6 +211,10 @@ body.ziel::after { content: "DXF-Datei hier ablegen"; position: fixed; inset: 12
 .kacheln b { font: 600 21px/1.1 var(--mono); font-variant-numeric: tabular-nums; letter-spacing: -.03em; } .kacheln b small { font: 500 11px var(--text); color: var(--blei); margin-left: 3px; letter-spacing: 0; }
 .kacheln .akzent { border-color: var(--akzent); background: var(--akzent-flaeche); } .kacheln .akzent b { color: var(--akzent); }
 .nachfrage { display: grid; grid-template-columns: 1fr 1fr; gap: 8px 10px; }
+.werte { display: grid; grid-template-columns: repeat(auto-fit, minmax(96px, 1fr)); gap: 10px 12px; } .werte div { display: grid; gap: 3px; align-content: start; }
+.werte b { font: 600 14px/1.2 var(--mono); font-variant-numeric: tabular-nums; letter-spacing: -.02em; white-space: nowrap; } .werte b small { font: 500 11px var(--text); color: var(--blei); margin-left: 2px; }
+.haken { display: flex; gap: 7px; align-items: center; font: 500 12px/1.3 var(--text); color: var(--tusche); cursor: pointer; } .haken input { margin: 0; accent-color: var(--akzent); }
+#plan [data-nb] { cursor: pointer; } #plan [data-nb]:hover { fill-opacity: .1; }
 #grund { order: 0; } #passt { order: 1; } #lage { order: 2; } #rest { order: 3; } /* erst was passt, dann der Entwurf; mit Urteil rückt der Entwurf vor */
 #blatt[data-urteil] #lage { order: 1; } #blatt[data-urteil] #passt { order: 2; }
 [data-status=offen] .chip { color: var(--blei); background: var(--grund); } [data-status=offen] .urteil em { color: inherit; }
@@ -226,7 +230,7 @@ dialog h2 { border: 0; padding: 0; margin: 14px 0 4px; } dialog h2:first-child {
 @media (max-width: 700px) { #ebenen, .tafel .trenner, #koord { display: none; } #kennzahl { margin: 0; padding: 0; border: 0; } input, select { font-size: 16px; } .leiste .suchzeile { order: 2; flex-basis: 100%; max-width: none; } .leiste .knoepfe { order: 3; flex-wrap: nowrap; overflow-x: auto; max-width: 100%; } .kacheln b { font-size: 18px; } }
 @media print {
   body { background: #fff; } .app { display: block; height: auto; } #angaben, .ecke, button, .suchzeile, #auftakt, dialog, #koord { display: none !important; }
-  #buehne { height: 115mm; border: 1px solid var(--raster); break-inside: avoid; } #plan [data-g], #plan [data-h], #plan [data-dreh] { display: none; }
+  #buehne { height: 115mm; border: 1px solid var(--raster); break-inside: avoid; } #plan [data-g], #plan [data-h], #plan [data-dreh] { display: none; } .haken, [data-hoehen] { display: none; }
   #blatt { overflow: visible; border: 0; padding: 8mm 0 0; } .statusleiste { border: 0; padding: 4px 0; } .statusleiste > span + span { border: 0; margin: 0; padding: 0; }
   #weg, .plan .klein, .legende, #passtzeilen .klein:has(button) { display: none; } /* Bedienhinweise gehören nicht aufs Blatt */
   .weg, .zeile, .kacheln, .stufe, .plan, .nachweis tr, .rechenweg p, .fuss { break-inside: avoid; } h2 { break-after: avoid; }
@@ -340,7 +344,7 @@ dialog h2 { border: 0; padding: 0; margin: 14px 0 4px; } dialog h2:first-child {
       <ol id="schritte"><li>Flurstück im Kataster</li><li>Nachbarn und Gebäude</li><li>Bebauungsplan</li><li>Was passt</li></ol>
       <p class="klein" id="auftaktmeldung" hidden></p>
       <div class="knoepfe" id="auftaktwege"><button type="button" class="link" id="startbeispiel">Beispiel ansehen</button><button type="button" class="link" id="startdxf">Lageplan aus CAD laden (DXF)</button><button type="button" class="link" id="starthand">Von Hand zeichnen</button></div>
-      <p class="klein fein">Rechnet auf Ihrem Gerät. Nur die Suche fragt das offene Kataster des Landes NRW und die Stadt Münster. Entwurf, ersetzt keine Prüfung.</p>
+      <p class="klein fein">Rechnet auf Ihrem Gerät. Nur die Suche und „Höhen holen“ fragen offene Dienste des Landes NRW und der Stadt Münster. Entwurf, ersetzt keine Prüfung.</p>
     </div></div>
   </section>
 
@@ -369,7 +373,7 @@ dialog h2 { border: 0; padding: 0; margin: 14px 0 4px; } dialog h2:first-child {
   <h2>Was Ihr Browser speichert</h2>
   <p>Ihre Angaben bleiben im Speicher Ihres Browsers auf diesem Gerät, damit sie beim nächsten Öffnen noch da sind. „Alles leeren“ unter „Angaben“ löscht sie. Die Seite setzt keine Cookies und zählt keine Besuche.</p>
   <h2>Was bei einer Suche übertragen wird</h2>
-  <p>Suchen Sie ein Grundstück, fragt Ihr Browser das Kataster des Landes Nordrhein-Westfalen und den Plan-Dienst der Stadt Münster. Dorthin gehen die Adresse oder das Flurstück, der Kartenausschnitt um das Grundstück und, wie bei jedem Abruf im Internet, Ihre IP-Adresse.</p>
+  <p>Suchen Sie ein Grundstück, fragt Ihr Browser das Kataster des Landes Nordrhein-Westfalen und den Plan-Dienst der Stadt Münster. Dorthin gehen die Adresse oder das Flurstück, der Kartenausschnitt um das Grundstück und, wie bei jedem Abruf im Internet, Ihre IP-Adresse. Holen Sie die Höhen der Nachbarhäuser, lädt Ihr Browser vom Datenportal des Landes die Datei des 3D-Gebäudemodells für den Quadratkilometer, in dem das Grundstück liegt.</p>
   <h2>Wo die Seite liegt</h2>
   <p>Rufen Sie die Seite im Netz auf, liefert GitHub Pages sie aus und verarbeitet dabei Ihre IP-Adresse. Ein Link zu einem Grundstück trägt das Flurstück hinter dem Zeichen #; dieser Teil wird nicht an den Server übertragen.</p>
   <form method="dialog"><button type="submit">Schließen</button></form>
@@ -860,6 +864,49 @@ function groesstesRechteck(frei, ns, nt, kappe) {
 // Je Geschosszahl: Abstand, Baufenster, größtes rechteckiges Haus und was daraus folgt (Wohnungen, Stellplätze, Räder, Spielfläche).
 // Gerechnet mit Flachdach und ohne die Pauschale für kleine Wohngebäude. null ohne Grundstück.
 // Das Haus hält von jedem Punkt aus den vollen Abstand zum Rand; das ist etwas strenger als die Messung senkrecht zur Wand.
+// Umgebung aus dem Kataster: was auf den Nachbargrundstücken steht. grund: das eigene Grundstück, flurstuecke: [{ ring, nutzung, lage }] ohne das eigene,
+// gebaeude: [{ ring, art, funktion, id }], hoehen: { id: Meter }, wahl: { Index: true/false } überstimmt den Vorschlag.
+// Vorgeschlagen sind bebaute Wohn- und Mischgrundstücke bis 20 m um das eigene; ein Haus mit mehr als der 2,5-fachen mittleren Grundfläche (gross) zählt erst auf Wunsch.
+// Je Nachbar: Grundfläche des größten Hauptgebäudes, Anteil aller Hauptgebäude am Flurstück (grz; null, wenn ein Haus über die Grenze reicht), kleinster Abstand zur Straße (vorn),
+// größte Tiefe ab Straße, größte Höhe.
+const NEBENGEBAEUDE = ["Gebäude zum Parken", "Gebäude zur Freizeitgestaltung", "Gebäude zur Versorgung", "Gebäude zur Entsorgung", "Treibhaus, Gewächshaus", "Parkdeck"];
+const ringAbstand = (v, w) => Math.min(...[[v, w], [w, v]].flatMap(([x, y]) => x.map((q) => Math.min(...nachbarn(y).map(([p0, p1]) => abstandStrecke(q, p0, p1))))));
+function umgebung(grund, flurstuecke, gebaeude, hoehen = {}, wahl = {}) {
+  const haeuser = gebaeude.map((g, i) => ({ g, i })).filter(({ g }) => g.art === "Gebäude" && !NEBENGEBAEUDE.includes(g.funktion) && Math.abs(flaeche(g.ring)) >= 30).map((h) => ({ ...h, c: mittel(h.g.ring) }));
+  const zehntel = (x) => Math.round(x * 10) / 10, mitte = (v) => v[Math.floor((v.length - 1) / 2)]; // der mittlere Wert, bei gerader Zahl der kleinere
+  const liste = flurstuecke.map((f, i) => {
+    const haupt = haeuser.filter((h) => innen(h.c, f.ring)), n = { i, nah: false, gross: false, lage: f.lage || "", haupt: haupt.map((h) => h.i), grundflaeche: null, grz: null, vorn: null, tiefe: null, hoehe: null };
+    if (!haupt.length) return n;
+    const flaechen = haupt.map((h) => Math.abs(flaeche(h.g.ring))), breiten = strassenVorschlag(f.ring, flurstuecke.filter((o) => o !== f));
+    const ecken = haupt.flatMap((h) => h.g.ring), ganz = ecken.filter((q) => innen(q, f.ring)).length >= 0.75 * ecken.length;
+    const kanten = nachbarn(f.ring).filter((_, k) => breiten[k] !== null), weit = ecken.map((q) => Math.min(...kanten.map(([p0, p1]) => abstandStrecke(q, p0, p1))));
+    const hoch = haupt.map((h) => hoehen[h.g.id]).filter((x) => x > 0);
+    return { ...n, nah: /Wohnbaufläche|Fläche gemischter Nutzung/.test(f.nutzung || "") && ringAbstand(grund, f.ring) <= 20, grundflaeche: Math.round(Math.max(...flaechen)),
+      grz: ganz ? Math.round(100 * flaechen.reduce((sum, x) => sum + x, 0) / Math.abs(flaeche(f.ring))) / 100 : null, vorn: kanten.length ? zehntel(Math.min(...weit)) : null,
+      tiefe: kanten.length ? zehntel(Math.max(...weit)) : null, hoehe: hoch.length ? zehntel(Math.max(...hoch)) : null };
+  });
+  const ueblich = mitte(liste.filter((n) => n.nah).map((n) => n.grundflaeche).sort((x, y) => x - y)) || 0;
+  for (const n of liste) { n.gross = n.nah && n.grundflaeche > 2.5 * ueblich; n.standard = n.nah && !n.gross; n.zaehlt = n.haupt.length > 0 && (n.i in wahl ? !!wahl[n.i] : n.standard); }
+  const zaehlen = liste.filter((n) => n.zaehlt);
+  const spanne = (k) => { const v = zaehlen.filter((n) => n[k] !== null).sort((x, y) => x[k] - y[k]);
+    return v.length ? { von: v[0][k], bis: v[v.length - 1][k], mitte: mitte(v)[k], groesster: v[v.length - 1].i, n: v.length } : null; };
+  return { nachbarn: liste, n: zaehlen.length, grosse: liste.filter((n) => n.gross && !n.zaehlt).map((n) => n.i),
+    grundflaeche: spanne("grundflaeche"), grz: spanne("grz"), vorn: spanne("vorn"), tiefe: spanne("tiefe"), hoehe: spanne("hoehe") };
+}
+
+// Höhen aus dem 3D-Gebäudemodell des Landes NRW (CityGML, eine Kachel je Quadratkilometer): je Gebäude die größte gemessene Höhe seiner Teile.
+// Die Kennung ist die des Katasters ohne die zwei Zeichen am Ende.
+const HOEHEN = "https://www.opengeodata.nrw.de/produkte/geobasis/3dg/lod2_gml/lod2_gml";
+const hoehenUrl = (x, y) => `${HOEHEN}/LoD2_32_${Math.floor(x / 1000)}_${Math.floor(y / 1000)}_1_NW.gml`;
+function hoehenLies(gml) {
+  const h = {};
+  for (const teil of gml.split('<bldg:Building gml:id="').slice(1)) {
+    const werte = [...teil.matchAll(/<bldg:measuredHeight[^>]*>([\d.]+)</g)].map((m) => Number(m[1]));
+    if (werte.length) h[teil.slice(0, teil.indexOf('"'))] = Math.max(...werte);
+  }
+  return h;
+}
+
 const ANNAHMEN = { geschosshoehe: 3, haustiefe: 14, anteil: 75, wohnung: 75 };
 function potenzial(a, hoechstens = 6) {
   const G = a.grundstueck;
@@ -867,7 +914,8 @@ function potenzial(a, hoechstens = 6) {
   const an = { ...ANNAHMEN }, g = punkte(G), rand = mitStrassen(g, G.map((p) => p.strasse)), baugebiet = a.baugebiet || "allgemein";
   // Was das Büro aus dem Bebauungsplan abgetippt hat: Vollgeschosse, GRZ, GFZ. Die GRZ deckelt die Grundfläche, die GFZ die Geschossfläche aller Geschosse,
   // beide bezogen auf die ganze Fläche des Flurstücks (BauNVO § 19 Abs. 1 bis 3, § 20 Abs. 2 und 3). Gezählt wird nur dieses Haus, jedes Geschoss als Vollgeschoss.
-  const fest = a.festsetzung || {}, F = Math.abs(flaeche(g));
+  // a.rahmen = { grundflaeche, hoehe }: die größten Werte der gezählten Nachbarn; deckeln Grundfläche und Höhe zusätzlich.
+  const fest = a.festsetzung || {}, um = a.rahmen || {}, F = Math.abs(flaeche(g));
   for (const k in ANNAHMEN) if (a.annahmen && a.annahmen[k] > 0) an[k] = a.annahmen[k];
   const xs = g.map((p) => p[0]), ys = g.map((p) => p[1]);
   const z = Math.max(0.25, Math.sqrt((Math.max(...xs) - Math.min(...xs)) * (Math.max(...ys) - Math.min(...ys)) / 20000)), zugabe = z * 0.71 + 0.02; // Zellmitte bis Zellecke
@@ -890,10 +938,10 @@ function potenzial(a, hoechstens = 6) {
       haus = [ecke(b[0], b[2]), ecke(b[1], b[2]), ecke(b[1], b[3]), ecke(b[0], b[3])];
     }
     if (Math.min(...mass) < 4) haus = null; // schmaler als 4 m ist kein Haus
-    let grenze = null; // was die Grundfläche unter das größte Haus drückt: "grz" oder "gfz"
-    const deckel = Math.min(fest.grz > 0 ? fest.grz * F : Infinity, fest.gfz > 0 ? fest.gfz * F / n : Infinity);
+    let grenze = null; // was die Grundfläche unter das größte Haus drückt: "umgebung", "grz" oder "gfz"
+    const deckel = Math.min(fest.grz > 0 ? fest.grz * F : Infinity, fest.gfz > 0 ? fest.gfz * F / n : Infinity, um.grundflaeche > 0 ? um.grundflaeche : Infinity);
     if (haus && mass[0] * mass[1] > deckel) { // Haus um seine Mitte kürzen, bis die Grundfläche passt: die lange Seite; bliebe sie unter 4 m, ein Quadrat
-      grenze = fest.grz > 0 && fest.grz * F <= deckel ? "grz" : "gfz";
+      grenze = um.grundflaeche > 0 && um.grundflaeche <= deckel ? "umgebung" : fest.grz > 0 && fest.grz * F <= deckel ? "grz" : "gfz";
       const lange = mass[0] >= mass[1] ? 0 : 1, kurz = mass[1 - lange], ab = (x) => Math.floor(x * 100 + 1e-9) / 100; // auf Zentimeter, zur sicheren Seite
       const neu = deckel / kurz >= 4 ? [ab(deckel / kurz), kurz] : [ab(Math.sqrt(deckel)), ab(Math.sqrt(deckel))];
       const c = mittel(haus), u = [(haus[1][0] - haus[0][0]) / mass[0], (haus[1][1] - haus[0][1]) / mass[0]], v = [(haus[3][0] - haus[0][0]) / mass[1], (haus[3][1] - haus[0][1]) / mass[1]];
@@ -905,15 +953,15 @@ function potenzial(a, hoechstens = 6) {
     zeilen.push({ geschosse: n, wandhoehe, tiefe, fenster: Math.round(fenster), haus, breite: haus ? rund(Math.max(...mass)) : 0, haustiefe: haus ? rund(Math.min(...mass)) : 0,
       grundflaeche: Math.round(grund), wohnflaeche: Math.round(wohn), wohnungen: we, kfz: we ? stellplaetzeKfz(liste, a.oepnv || "keiner").mit_abschlag : 0,
       raeder: we ? fahrradabstellplaetze(liste) : null, spiel: we ? spielplatz(liste, 0, "errichtung") : null,
-      grenze, ueber: fest.geschosse > 0 && n > fest.geschosse }); // ueber: mehr Geschosse, als der Plan zulässt
+      grenze, ueber: fest.geschosse > 0 && n > fest.geschosse, hoch: um.hoehe > 0 && wandhoehe > um.hoehe }); // ueber: mehr Geschosse, als der Plan zulässt; hoch: höher als die Nachbarn
   }
   const wert = (x) => (x > 0 ? x : null);
-  return { zeilen, annahmen: an, baugebiet, festsetzung: { geschosse: wert(fest.geschosse), grz: wert(fest.grz), gfz: wert(fest.gfz) } };
+  return { zeilen, annahmen: an, baugebiet, festsetzung: { geschosse: wert(fest.geschosse), grz: wert(fest.grz), gfz: wert(fest.gfz) }, rahmen: { grundflaeche: wert(um.grundflaeche), hoehe: wert(um.hoehe) } };
 }
 
 if (typeof module !== "undefined") {
   module.exports = { linkSchreibe, linkLies, adressTeile, adressTreffer, dxfSchreibe, de, stellplaetzeKfz, fahrradabstellplaetze, spielplatz, geschuetzt, abstandsflaeche, spielraum, feuerwehr,
-    flaeche, innen, liegtAuf, mitStrassen, freiraum, dxfText, dxfPolygone, lage, loesung, katasterUrl, katasterLies, strassenVorschlag, bplanUrl, bplanTreffer, starthaus, potenzial };
+    flaeche, innen, liegtAuf, mitStrassen, freiraum, dxfText, dxfPolygone, lage, loesung, katasterUrl, katasterLies, strassenVorschlag, bplanUrl, bplanTreffer, starthaus, potenzial, umgebung, hoehenUrl, hoehenLies };
 }
 </script>
 
@@ -1012,6 +1060,26 @@ $("leeren").addEventListener("click", () => { beende(); a = structuredClone(LEER
 
 let ansicht = null, zug = null, passt = { schluessel: "", P: null }; // Ansicht bleibt beim Ziehen stehen; passt: Tabelle „Was passt“
 let gezeigt = null; // zuletzt gezeichnet, für die Vorschau aus der Tabelle
+let umfeld = { schluessel: "", U: null }, hoehenStand = ""; // gemessene Nachbarn; hoehenStand: "laedt" oder eine Fehlermeldung
+function umgebungJetzt() { // nur neu messen, wenn sich Grundstück, Auswahl oder Höhen ändern
+  const u = a.umgebung;
+  if (!u.art) return null;
+  const schluessel = JSON.stringify([a.grundstueck, u.flurstuecke.length, u.wahl, u.hoehen && Object.keys(u.hoehen).length]);
+  if (schluessel !== umfeld.schluessel) umfeld = { schluessel, U: umgebung(punkte(a.grundstueck), u.flurstuecke.map((ring, i) => ({ ring, ...u.art.flurstuecke[i] })), u.gebaeude.map((ring, i) => ({ ring, ...u.art.gebaeude[i] })), u.hoehen || {}, u.wahl) };
+  return umfeld.U;
+}
+const rahmenJetzt = () => { const U = umgebungJetzt(); return U && U.n && a.umgebung.messen ? { grundflaeche: U.grundflaeche.bis, hoehe: U.hoehe ? U.hoehe.bis : null } : null; };
+async function holeHoehen() { // Höhen der Nachbarhäuser aus dem 3D-Modell des Landes: je Quadratkilometer eine Datei von rund 15 MB
+  const u = a.umgebung, [x0, y0] = a.ursprung, eigene = new Set(u.art.gebaeude.map((g) => g.id));
+  const kacheln = [...new Set(umgebungJetzt().nachbarn.flatMap((n) => n.haupt).map((i) => { const c = mittel(u.gebaeude[i]); return hoehenUrl(c[0] + x0, c[1] + y0); }))];
+  hoehenStand = "laedt"; zeichneBlatt();
+  try {
+    const alle = Object.assign({}, ...await Promise.all(kacheln.map((k) => hole(k, hoehenLies, 90000))));
+    u.hoehen = Object.fromEntries(Object.entries(alle).filter(([id]) => eigene.has(id)));
+    hoehenStand = "";
+  } catch { hoehenStand = "Das 3D-Modell des Landes ist gerade nicht erreichbar."; }
+  neu();
+}
 let linkZiel = linkLies(location.hash), vorhang = null, rauteStand = null; // Einstieg über der Zeichenfläche: "link", "laedt", "wahl" oder erzwungen "leer"
 if (linkZiel && linkZiel.kennzeichen === a.kataster.kennzeichen) linkZiel = null; // dieses Grundstück ist schon da
 const setze = (el, html) => { if (el.inhalt !== html) { el.innerHTML = html; el.inhalt = html; } }; // nur bei Änderung: sonst verliert ein Feld darin beim Neuzeichnen den Fokus
@@ -1042,8 +1110,11 @@ function zeichnePlan(L, geist, schau = null) {
     for (let y = Math.ceil(y1 / m) * m; y <= cy + hoehe / 2 / k; y += m) raster += `M0 ${py(y).toFixed(1)}H640`;
   }
   let t = `<path d="${raster}" stroke="var(--raster)" stroke-width=".6" fill="none"/><defs><clipPath id="jenseits"><path clip-rule="evenodd" d="M-2000 -2000H4000V4000H-2000Z M${P(L.rand).replace(/ /g, " L")}Z"/></clipPath></defs>`;
-  if (ebenen.umgebung) t += `<g class="umfeld">` + a.umgebung.flurstuecke.map((v) => vieleck(v, 'fill="none" stroke="var(--blei)" stroke-width=".6"')).join("")
-    + a.umgebung.gebaeude.map((v) => vieleck(v, 'fill="var(--raster)" stroke="var(--blei)" stroke-width=".6"')).join("") + `</g>`;
+  const U = ebenen.umgebung ? umgebungJetzt() : null, nb = U ? U.nachbarn : [], gezaehlt = new Set(nb.filter((n) => n.zaehlt).flatMap((n) => n.haupt)); // gezählte Nachbarhäuser sind dunkler; ein Klick aufs Grundstück nimmt es heraus oder dazu
+  if (ebenen.umgebung) t += `<g class="umfeld">` + a.umgebung.flurstuecke.map((v, i) => (nb[i] && nb[i].haupt.length
+      ? `<polygon points="${P(v)}" fill="var(--akzent)" fill-opacity="0" stroke="var(--blei)" stroke-width=".6" data-nb="${i}"><title>${esc(nb[i].lage || "Nachbar")}: ${nb[i].grundflaeche} m² Grundfläche${nb[i].grz === null ? "" : `, GRZ ${de(nb[i].grz)}`}${nb[i].hoehe ? `, ${de(nb[i].hoehe).slice(0, -1)} m hoch` : ""}. ${nb[i].zaehlt ? "Zählt zur Umgebung; Klick nimmt es heraus." : "Zählt nicht; Klick nimmt es dazu."}</title></polygon>`
+      : vieleck(v, 'fill="none" stroke="var(--blei)" stroke-width=".6"'))).join("")
+    + a.umgebung.gebaeude.map((v, i) => vieleck(v, `fill="var(--${gezaehlt.has(i) ? "kante" : "raster"})" stroke="var(--blei)" stroke-width=".6" pointer-events="none"`)).join("") + `</g>`;
   for (const s of L.strassen) {
     const m = (p, w) => [p[0] + s.n[0] * w, p[1] + s.n[1] * w], mitte = m(mittel([s.a, s.b]), s.w / 2);
     t += vieleck([s.a, s.b, m(s.b, s.w), m(s.a, s.w)], 'fill="var(--gebaeude)" fill-opacity=".7"')
@@ -1075,10 +1146,20 @@ function zeichnePlan(L, geist, schau = null) {
         + `<text x="${px(neben[0])}" y="${py(neben[1]) + 3.5}" text-anchor="middle"${W.ok ? "" : ' class="fehl"'} pointer-events="none">${de(W.frei)}</text>`;
     }
   }
+  if (U && U.n > 1 && U.vorn) { // wo die Nachbarn zur Straße stehen und wie tief sie reichen: Linien quer übers eigene Grundstück, gleichlaufend zur Straße
+    for (const s of L.strassen) for (const [d, text] of [[U.vorn.mitte, "Flucht der Nachbarn"], [U.tiefe.bis, "Tiefe der Nachbarn"]]) {
+      const l = lang(s.a, s.b), m = mittel([s.a, s.b]), auf = (w) => [m[0] - s.n[0] * d + (s.b[0] - s.a[0]) / l * w, m[1] - s.n[1] * d + (s.b[1] - s.a[1]) / l * w];
+      const drin = []; for (let w = -80; w <= 80; w += 0.5) if (innen(auf(w), L.g)) drin.push(w);
+      if (!drin.length) continue;
+      const von = auf(drin[0]), bis = auf(drin[drin.length - 1]), mitte = auf((drin[0] + drin[drin.length - 1]) / 2);
+      t += `<line x1="${px(von[0])}" y1="${py(von[1])}" x2="${px(bis[0])}" y2="${py(bis[1])}" stroke="var(--blei)" stroke-width="1" stroke-dasharray="2 4" pointer-events="none"/>`
+        + `<text x="${px(mitte[0])}" y="${py(mitte[1]) - 4}" text-anchor="middle" class="blei" pointer-events="none">${text} ${de(d).slice(0, -1)} m</text>`;
+    }
+  }
   const c = mittel(L.h);
   const finger = matchMedia("(any-pointer: coarse)").matches ? 20 * 640 / ($("plan").getBoundingClientRect().width || 640) : 0; // Finger treffen keine 5 px: unsichtbare Fläche von 40 px um jeden Griff
-  const flaeche = ([x, y], wie) => `<circle cx="${px(x)}" cy="${py(y)}" r="${finger.toFixed(1)}" fill="transparent" ${wie}/>`;
-  if (finger) t += L.g.map((p, i) => flaeche(p, `data-g="${i}"`)).join("") + (schau ? [] : L.h).map((p, i) => flaeche(p, `data-h="${i}"`)).join("") + (!L.h.length || schau ? "" : flaeche(c, "data-dreh"));
+  const treffer = ([x, y], wie) => `<circle cx="${px(x)}" cy="${py(y)}" r="${finger.toFixed(1)}" fill="transparent" ${wie}/>`;
+  if (finger) t += L.g.map((p, i) => treffer(p, `data-g="${i}"`)).join("") + (schau ? [] : L.h).map((p, i) => treffer(p, `data-h="${i}"`)).join("") + (!L.h.length || schau ? "" : treffer(c, "data-dreh"));
   t += L.g.map(([x, y], i) => `<rect x="${px(x) - 4}" y="${py(y) - 4}" width="8" height="8" fill="var(--papier)" stroke="var(--tusche)" data-g="${i}"><title>Grenzpunkt ${i + 1} ziehen</title></rect>`).join("")
     + (schau ? [] : L.h).map(([x, y], i) => `<circle data-ecke cx="${px(x)}" cy="${py(y)}" r="4.5" fill="var(--papier)" stroke="var(--tusche)" stroke-width="1.5" data-h="${i}"><title>Hausecke ${i + 1} ziehen</title></circle>`).join("")
     + (!L.h.length || schau ? "" : `<circle cx="${px(c[0])}" cy="${py(c[1])}" r="9" fill="var(--papier)" stroke="var(--tusche)" stroke-width="1.5" stroke-dasharray="11 3" data-dreh><title>Haus drehen</title></circle>`);
@@ -1221,6 +1302,10 @@ $("plan").addEventListener("pointermove", (e) => {
   neu();
 });
 for (const typ of ["pointerup", "pointercancel"]) $("plan").addEventListener(typ, () => { if (zug && zug.art !== "film") { zug = null; zeichneBlatt(); } });
+$("plan").addEventListener("click", (e) => { // Nachbargrundstück zählt zur Umgebung oder nicht
+  const i = e.target.dataset.nb, U = i === undefined ? null : umgebungJetzt();
+  if (U) { beende(); a.umgebung.wahl = { ...a.umgebung.wahl, [i]: !U.nachbarn[i].zaehlt }; neu(); }
+});
 $("buehne").addEventListener("click", (e) => { if (e.target.tagName === "BUTTON" && e.target.dataset.dreh) { beende(); drehe(Number(e.target.dataset.dreh)); neu(); } });
 $("ebenen").addEventListener("change", (e) => { ebenen[e.target.dataset.ebene] = e.target.checked; zeichneBlatt(); });
 addEventListener("resize", () => { if (!zug) zeichneBlatt(); });
@@ -1251,6 +1336,7 @@ $("blatt").addEventListener("click", (e) => {
     $("buehne").scrollIntoView({ behavior: "smooth", block: "nearest" });
   }
   if (e.target.hasAttribute("data-starthaus")) document.querySelector('[data-neu="haus"]').click();
+  if (e.target.hasAttribute("data-hoehen")) holeHoehen();
   const d = e.target.hasAttribute("data-einpassen") && loesung(a);
   if (d) { // das Haus gleitet an den gefundenen Standort
     beende();
@@ -1321,7 +1407,7 @@ addEventListener("dragover", (e) => e.preventDefault());
 addEventListener("drop", (e) => { e.preventDefault(); ueber = 0; document.body.classList.remove("ziel"); ladeDxf(e.dataTransfer.files[0]); });
 
 // Kataster: Flurstück, Nachbarn und Gebäude holen; Straßen an den Kanten vorschlagen
-const hole = async (adresse) => { const r = await fetch(adresse, { signal: AbortSignal.timeout(15000) }); if (!r.ok) throw new Error(r.status); return katasterLies(await r.text()); };
+const hole = async (adresse, lies = katasterLies, frist = 15000) => { const r = await fetch(adresse, { signal: AbortSignal.timeout(frist) }); if (!r.ok) throw new Error(r.status); return lies(await r.text()); };
 const AUSFALL = "Das Kataster ist gerade nicht erreichbar. Bitte später noch einmal versuchen oder den Lageplan als DXF laden.";
 const schritt = (n) => [...$("schritte").children].forEach((li, i) => { li.className = i < n ? "fertig" : i === n ? "laeuft" : ""; });
 function vorhangAuf(zustand, meldung = "") { // Einstieg zeigen: "leer", "link", "laedt", "wahl"; null gibt den Plan frei
@@ -1338,7 +1424,8 @@ async function uebernimm(ich, vorweg = "") { // ein Flurstück aus dem Kataster:
   const m = $("katastermeldung"), xs = ich.ring.map((p) => p[0]), ys = ich.ring.map((p) => p[1]), x0 = Math.min(...xs), y0 = Math.min(...ys);
   const kasten = [x0 - 40, y0 - 40, Math.max(...xs) + 40, Math.max(...ys) + 40].map(Math.round);
   schritt(1);
-  const [flur, gebaeude] = await Promise.all([hole(katasterUrl("Flurstueck", kasten)), hole(katasterUrl("GebaeudeBauwerk", kasten))]);
+  const weiter = [kasten[0] - 50, kasten[1] - 50, kasten[2] + 50, kasten[3] + 50]; // Gebäude weiter fassen: Nachbargrundstücke am Rand sollen ihre Häuser ganz haben
+  const [flur, gebaeude] = await Promise.all([hole(katasterUrl("Flurstueck", kasten)), hole(katasterUrl("GebaeudeBauwerk", weiter))]);
   schritt(2);
   let plan = ""; // Bebauungspläne gibt es so nur für die Stadt Münster
   a.bplan = null;
@@ -1348,12 +1435,14 @@ async function uebernimm(ich, vorweg = "") { // ein Flurstück aus dem Kataster:
     if (kraft.length) a.planungsrecht = "bplan";
     plan = kraft.length ? `Das Grundstück liegt im Bebauungsplan ${[...new Set(kraft.map((b) => b.nr))].join(", ")}; „Lage des Grundstücks“ ist darauf gestellt. ` : "Die Stadt zeigt hier keinen rechtskräftigen Bebauungsplan; „Lage des Grundstücks“ bitte selbst wählen. ";
   } catch { plan = "Die Bebauungspläne der Stadt waren nicht abrufbar. "; }
-  const nachbarn = flur.filter((o) => o.felder.flstkennz !== ich.felder.flstkennz).map((o) => ({ ring: o.ring, nutzung: o.felder.tntxt || "" }));
+  const nachbarn = flur.filter((o) => o.felder.flstkennz !== ich.felder.flstkennz).map((o) => ({ ring: o.ring, nutzung: o.felder.tntxt || "", lage: o.felder.lagebeztxt || "" }));
   const breiten = strassenVorschlag(ich.ring, nachbarn), um = ([x, y]) => [rund(x - x0), rund(y - y0)];
   schritt(3);
   beende();
   a.grundstueck = ich.ring.map(um).map(([x, y], i) => ({ x, y, strasse: breiten[i] }));
-  a.umgebung = { flurstuecke: nachbarn.map((o) => o.ring.map(um)), gebaeude: gebaeude.map((o) => o.ring.map(um)) };
+  a.umgebung = { flurstuecke: nachbarn.map((o) => o.ring.map(um)), gebaeude: gebaeude.map((o) => o.ring.map(um)), // art: was das Kataster zu jedem Umriss sagt, in derselben Reihenfolge
+    art: { flurstuecke: nachbarn.map((o) => ({ nutzung: o.nutzung, lage: o.lage })), gebaeude: gebaeude.map((o) => ({ art: o.felder.gebnutzbez || "", funktion: o.felder.funktion || "", id: (o.felder.oid || "").slice(0, 16) })) },
+    hoehen: null, wahl: {}, messen: !!a.bplan && !a.bplan.kraft.length }; // ohne Bebauungsplan misst „Was passt“ gleich an den Nachbarn
   a.haus = []; // kein Haus vorgeben: Die Stufen zeigen, was passt
   a.festsetzung = structuredClone(LEER.festsetzung); // anderes Grundstück, anderer Plan
   a.nord = true; // Kataster-Koordinaten: Norden ist oben
@@ -1459,31 +1548,35 @@ function zeichneBlatt() {
   $("auftaktzu").hidden = !L || zustand === "laedt";
   $("blatt").toggleAttribute("data-urteil", !!L && !L.fehlt.length);
   if (!L || L.fehlt.length) fehlt.push(`Lageplan und Abstände (${L ? L.fehlt.join(", ") : "Grundstück"})`);
-  const abstaende = L ? zeichneLage(L) : [];
-  const schluessel = JSON.stringify([a.grundstueck, a.annahmen, a.baugebiet, a.oepnv, a.festsetzung]); // nur neu rechnen, wenn sich das Grundstück ändert, nicht beim Ziehen des Hauses
-  if (schluessel !== passt.schluessel && !(zug && zug.art === "g")) passt = { schluessel, P: potenzial(a), wahl: null };
-  const P = passt.P, moeglich = P ? P.zeilen.filter((r) => r.haus && !r.ueber) : [];
+  const U = L ? umgebungJetzt() : null, rahmen = rahmenJetzt();
+  const schluessel = JSON.stringify([a.grundstueck, a.annahmen, a.baugebiet, a.oepnv, a.festsetzung, rahmen]); // nur neu rechnen, wenn sich das Grundstück ändert, nicht beim Ziehen des Hauses
+  if (schluessel !== passt.schluessel && !(zug && zug.art === "g")) passt = { schluessel, P: potenzial({ ...a, rahmen }), wahl: null };
+  const P = passt.P, moeglich = P ? P.zeilen.filter((r) => r.haus && !r.ueber && !r.hoch) : [];
   const meiste = Math.max(0, ...moeglich.map((r) => r.wohnungen)), beste = moeglich.find((r) => r.wohnungen === meiste) || null;
   if (P && !moeglich.some((r) => r.geschosse === passt.wahl)) passt.wahl = beste ? beste.geschosse : null; // aufgeklappt ist zuerst die Stufe mit den meisten Wohnungen
+  const abstaende = L ? zeichneLage(L) : []; // der Plan zeigt die gewählte Stufe, deshalb erst danach
   $("passt").hidden = !P;
   if (P) {
     const mz = (n, ein, mehr) => `${n} ${n === 1 ? ein : mehr}`, reihe = (v) => (v.length > 1 ? `${v.slice(0, -1).join(", ")} und ${v[v.length - 1]} Geschosse` : mz(v[0], "Geschoss", "Geschosse"));
-    const stufe = (r) => { const offen = r.geschosse === passt.wahl, grenze = { grz: " Die GRZ begrenzt hier die Grundfläche.", gfz: " Die GFZ begrenzt hier die Geschossfläche." }[r.grenze] || "";
+    const stufe = (r) => { const offen = r.geschosse === passt.wahl, grenze = { grz: " Die GRZ begrenzt hier die Grundfläche.", gfz: " Die GFZ begrenzt hier die Geschossfläche.", umgebung: " Die größte Grundfläche der Nachbarn begrenzt hier das Haus." }[r.grenze] || "";
       return `<div class="stufe${r === beste ? " beste" : ""}${offen ? " gewaehlt" : ""}" data-zeile="${r.geschosse}" tabindex="0" role="button" aria-expanded="${offen}"><strong>${mz(r.geschosse, "Geschoss", "Geschosse")}</strong>`
         + `<span class="we">${mz(r.wohnungen, "Wohnung", "Wohnungen")}</span><div class="balken"><i style="width:${meiste ? 100 * r.wohnungen / meiste : 0}%"></i></div>`
         + (offen ? `<p class="klein">Haus ${de(r.breite)} × ${de(r.haustiefe)} m, ${de(r.tiefe)} m Abstand zur Grenze, ${r.wohnflaeche} m² Wohnfläche.${grenze} Dazu ${mz(r.kfz, "Stellplatz", "Stellplätze")}, ${mz(r.raeder ?? 0, "Fahrradplatz", "Fahrradplätze")}${r.spiel ? ` und ${r.spiel.flaeche} m² Spielfläche` : ""}.</p>`
           + `<button type="button" class="haupt" data-nimm="${r.geschosse}">Dieses Haus in den Plan</button>` : "") + `</div>`; };
-    const drueber = P.zeilen.filter((r) => r.ueber).map((r) => r.geschosse), ohne = P.zeilen.filter((r) => !r.haus && !r.ueber).map((r) => r.geschosse);
+    const drueber = P.zeilen.filter((r) => r.ueber).map((r) => r.geschosse), ohne = P.zeilen.filter((r) => !r.haus && !r.ueber && !r.hoch).map((r) => r.geschosse);
+    const hoeher = P.zeilen.filter((r) => r.hoch && !r.ueber).map((r) => r.geschosse);
     $("spiel").hidden = moeglich.length < 2;
     $("passtzeilen").innerHTML = moeglich.map(stufe).join("")
       + (ohne.length ? `<p class="klein" style="margin-top:8px">${reihe(ohne)}: Der nötige Abstand zur Grenze lässt kein Haus von mindestens 4 m Breite übrig.</p>` : "")
       + (drueber.length ? `<p class="klein" style="margin-top:8px">${reihe(drueber)}: mehr, als der Bebauungsplan nach Ihrer Angabe zulässt.</p>` : "")
+      + (hoeher.length ? `<p class="klein" style="margin-top:8px">${reihe(hoeher)}: höher als das höchste gezählte Nachbarhaus (${de(P.rahmen.hoehe).slice(0, -1)} m).</p>` : "")
       + (L && !L.h.length ? `<p class="klein" style="margin-top:8px">Lieber selbst zeichnen? <button type="button" class="link" data-starthaus>Ein kleines Haus setzen</button> und im Plan zurechtziehen.</p>` : "");
     const an = P.annahmen, fs = P.festsetzung;
     $("passttext").textContent = `Je Geschosszahl sucht die Seite das größte rechteckige Haus, das rundum den nötigen Abstand zur Grenze hält. Annahmen: Flachdach, ${de(an.geschosshoehe)} m je Geschoss, `
       + `Haus höchstens ${de(an.haustiefe)} m tief, ${an.anteil} % der Geschossfläche sind Wohnfläche, eine Wohnung hat ${an.wohnung} m², ${{ allgemein: "Wohn-, Misch- oder sonstiges Gebiet", gewerbe_industrie: "Gewerbe- oder Industriegebiet", kern: "Kerngebiet" }[P.baugebiet]}`
       + `${a.baugebiet ? "" : " (angenommen)"}. Unter „Angaben“ ändern Sie diese Werte. Stellplätze ${a.oepnv ? OEPNV_TEXT[a.oepnv] : "ohne Abschlag für Bus und Bahn"}, Fahrradplätze und Spielfläche folgen den Münsteraner Satzungen; `
       + `ihre Fläche auf dem Grundstück ist nicht abgezogen. Die Erleichterung für kleine Wohngebäude (pauschal 3 m Abstand) ist nicht eingerechnet.`
+      + (P.rahmen.grundflaeche ? ` An der Umgebung gemessen: Die Grundfläche bleibt unter der größten der gezählten Nachbarn (${P.rahmen.grundflaeche} m²)${P.rahmen.hoehe ? `, die Höhe unter dem höchsten Nachbarhaus (${de(P.rahmen.hoehe).slice(0, -1)} m bis zum höchsten Punkt des Dachs)` : ""}. Das ist ein Anhalt, keine Zusage.` : "")
       + (fs.geschosse || fs.grz || fs.gfz ? ` Vollgeschosse, GRZ und GFZ stammen von Ihnen. Gezählt ist nur das Hauptgebäude auf der ganzen Fläche des Flurstücks, jedes Geschoss als Vollgeschoss. Bei älteren Plänen gilt die Baunutzungsverordnung von damals; die Seite rechnet nach der heutigen.` : "");
   }
 
@@ -1494,16 +1587,26 @@ function zeichneBlatt() {
     const planlink = a.bplan ? a.bplan.kraft.filter((b, i, alle) => b.url && alle.findIndex((c) => c.nr === b.nr) === i).map((b) => `<a href="${esc(b.url)}" target="_blank" rel="noopener">Plan ansehen</a>`).join(", ") : "";
     const feld = (p, name, step, tipp) => `<label title="${tipp}">${name}<input type="number" min="0" step="${step}" data-p="festsetzung.${p}" value="${fs[p] ?? ""}"></label>`;
     const bei = beste ? `bei ${beste.geschosse} ${beste.geschosse === 1 ? "Geschoss" : "Geschossen"}` : "";
+    const zehntel = (x) => de(x).slice(0, -1), spanne = (name, sp, einheit, f, tipp) => `<div title="${tipp}"><span class="label">${name}</span><b>${sp ? (sp.von === sp.bis ? f(sp.bis) : `${f(sp.von)}–${f(sp.bis)}`) : "–"}${sp && einheit ? `<small>${einheit}</small>` : ""}</b></div>`;
     setze($("grund"), `<span class="label">Grundstück</span>` + (k.kennzeichen ? `<div class="name">${esc(k.lage || "Flurstück ohne Adresse")}</div>`
         + `<p class="klein">Gemarkung ${esc(k.gemarkung)} · Flur ${esc(k.flur)} · Flurstück ${esc(k.nummer)}${k.stand ? ` · Kataster vom ${esc(datum(k.stand))}` : ""}</p>` : "")
       + `<div class="kacheln"><div><b>${Math.round(Math.abs(flaeche(L.g)))}<small>m²</small></b><span class="label">Grundstück</span></div>`
       + (beste ? `<div class="akzent"><b>${beste.wohnungen}</b><span class="label">Wohnungen höchstens</span></div><div><b>${beste.wohnflaeche}<small>m²</small></b><span class="label">Wohnfläche höchstens</span></div>` : "") + `</div>`
       + `<p class="klein">${!beste ? "Mit diesen Vorgaben findet die Seite kein Haus von mindestens 4 m Breite."
-        : mitPlan ? `Gerechnet mit den Abständen zur Grenze und Ihren Werten aus dem Bebauungsplan, ${bei}. Baugrenzen, Bauweise und weitere Festsetzungen prüft die Seite nicht.`
+        : mitPlan || rahmen ? `Gerechnet mit den Abständen zur Grenze${mitPlan ? `${rahmen ? "," : " und"} Ihren Werten aus dem Bebauungsplan` : ""}${rahmen ? " und dem, was die Nachbarn gebaut haben" : ""}, ${bei}. Baugrenzen, Bauweise und weitere Festsetzungen prüft die Seite nicht.`
         : `„Höchstens“ heißt: so viel, wie die Abstände zur Grenze hergeben, ${bei}. Der Bebauungsplan erlaubt oft weniger. Tragen Sie seine Werte ein, dann rechnet die Seite damit.`}</p>`
       + `<div class="plan"><span class="label">Aus dem Bebauungsplan${plaene.length ? ` ${esc(plaene.join(", "))}` : ""}${planlink ? ` · ${planlink}` : ""}</span>`
       + `<div class="nachfrage drei">${feld("geschosse", "Vollgeschosse", 1, "Zahl der Vollgeschosse, im Plan oft als römische Zahl")}${feld("grz", "GRZ", 0.05, "Grundflächenzahl, zum Beispiel 0,4")}${feld("gfz", "GFZ", 0.05, "Geschossflächenzahl, zum Beispiel 0,8")}</div>`
-      + `<p class="klein">Die drei Werte stehen in der Nutzungsschablone des Plans. Leer lassen, was der Plan nicht festsetzt.</p></div>`);
+      + `<p class="klein">Die drei Werte stehen in der Nutzungsschablone des Plans. Leer lassen, was der Plan nicht festsetzt.</p></div>`
+      + (U ? `<div class="plan"><span class="label">Umgebung · ${U.n} ${U.n === 1 ? "Nachbar" : "Nachbarn"} gezählt</span>`
+        + (U.n ? `<div class="werte">${spanne("Grundfläche", U.grundflaeche, "m²", (x) => x, "Je Flurstück das größte Hauptgebäude, kleinstes bis größtes")}${spanne("GRZ", U.grz, "", de, "Alle Hauptgebäude eines Flurstücks geteilt durch seine Fläche; ohne Garagen, Zufahrten und Nebenanlagen")}`
+          + `${spanne("Abstand zur Straße", U.vorn, "m", zehntel, "Von der Straßengrenze bis zur nächsten Hausecke")}${spanne("Tiefe ab Straße", U.tiefe, "m", zehntel, "Von der Straßengrenze bis zur hintersten Hausecke")}`
+          + (U.hoehe ? spanne("Höhe", U.hoehe, "m", zehntel, "Bis zum höchsten Punkt des Dachs, aus dem 3D-Gebäudemodell des Landes") : `<div><span class="label">Höhe</span>${hoehenStand === "laedt" ? `<span class="klein">lädt …</span>` : a.umgebung.hoehen ? `<span class="klein">nicht im 3D-Modell</span>` : `<button type="button" class="link" data-hoehen title="Aus dem 3D-Gebäudemodell des Landes NRW; je Quadratkilometer eine Datei von rund 15 MB">Höhen holen</button>`}</div>`) + `</div>`
+          + (hoehenStand && hoehenStand !== "laedt" ? `<p class="klein">${esc(hoehenStand)}</p>` : "")
+          + `<label class="haken"><input type="checkbox" data-p="umgebung.messen"${a.umgebung.messen ? " checked" : ""}>„Was passt“ an der Umgebung messen</label>` : "")
+        + `<p class="klein">Gemessen im Kataster, ohne Garagen und Nebengebäude. Gezählt sind bebaute Wohngrundstücke bis 20 m um Ihres; ihre Häuser sind im Plan dunkler.`
+          + (U.grosse.length ? ` ${U.grosse.length === 1 ? "Ein deutlich größeres Haus" : `${U.grosse.length} deutlich größere Häuser`} (${U.grosse.map((i) => `${U.nachbarn[i].grundflaeche} m²`).join(", ")}) ${U.grosse.length === 1 ? "zählt" : "zählen"} zunächst nicht mit.` : "")
+          + ` Ein Klick auf ein Grundstück im Plan nimmt es heraus oder dazu. Ob sich ein Haus einfügt, beurteilt das Bauamt.</p></div>` : ""));
   }
 
   const wohnungen = a.wohnungen.filter((w) => Number.isInteger(w.anzahl) && w.anzahl > 0 && istZahl(w.wohnflaeche));
