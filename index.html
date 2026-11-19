@@ -218,6 +218,18 @@ body.ziel::after { content: "DXF-Datei hier ablegen"; position: fixed; inset: 12
 #grund { order: 0; } #passt { order: 1; } #lage { order: 2; } #rest { order: 3; } /* erst was passt, dann der Entwurf; mit Urteil rückt der Entwurf vor */
 #blatt[data-urteil] #lage { order: 1; } #blatt[data-urteil] #passt { order: 2; }
 [data-status=offen] .chip { color: var(--blei); background: var(--grund); } [data-status=offen] .urteil em { color: inherit; }
+/* Vor dem Absenden: Umschalter und Liste */
+.wahl { display: inline-flex; justify-self: start; border: 1px solid var(--raster); border-radius: 8px; padding: 2px; gap: 2px; background: var(--grund); }
+.wahl button { border: 0; background: none; padding: 6px 10px; color: var(--blei); } .wahl button:hover:not(:disabled) { background: none; color: var(--tusche); }
+.wahl button[aria-pressed=true] { background: var(--papier); color: var(--tusche); font-weight: 600; box-shadow: 0 0 0 1px var(--raster); }
+#absenden { order: -1; } #absenden h2 { margin-top: 8px; }
+.punkt { display: grid; grid-template-columns: 8px minmax(0, 1fr); gap: 0 10px; padding: 8px 0; border-bottom: 1px solid var(--raster); }
+.punkt > i { width: 8px; height: 8px; border-radius: 50%; margin-top: 5px; background: var(--blei); }
+.punkt[data-s=fehl] > i { background: var(--fehl); } .punkt[data-s=ok] > i { background: var(--ok); } .punkt[data-s=selbst] > i { background: var(--warn); }
+.punkt[data-s=nicht] > i { background: none; box-shadow: inset 0 0 0 1.5px var(--blei); }
+.punkt h3 { font: 600 13px/1.3 var(--text); margin: 0; } .punkt p { margin: 1px 0 0; font-size: 12px; color: var(--blei); } .punkt h3, .punkt p { overflow-wrap: anywhere; }
+.punkt .folge { color: var(--tusche); } .punkt .knoepfe { margin-top: 7px; }
+.punkt .ist { display: flex; flex-direction: row; align-items: center; gap: 8px; margin-top: 6px; } .punkt .ist input { width: 84px; }
 dialog { max-width: min(92vw, 560px); border: 1px solid var(--raster); border-radius: 12px; padding: 20px 22px; background: var(--papier); color: var(--tusche); box-shadow: var(--schatten); }
 dialog::backdrop { background: rgba(0, 0, 0, .4); }
 dialog h2 { border: 0; padding: 0; margin: 14px 0 4px; } dialog h2:first-child { margin-top: 0; } dialog p { margin: 0 0 8px; font-size: 13px; color: var(--blei); }
@@ -262,7 +274,7 @@ dialog h2 { border: 0; padding: 0; margin: 14px 0 4px; } dialog h2:first-child {
         <p class="klein breit" id="katastermeldung" hidden></p>
         <p class="klein breit">Hier suchen Sie mit der Flurstücksnummer statt mit der Adresse.</p>
       </div>
-      <div class="knoepfe"><button type="button" id="dxfknopf">Lageplan aus CAD laden (DXF)</button><input type="file" id="dxf" accept=".dxf" hidden></div>
+      <div class="knoepfe"><button type="button" id="dxfknopf">Lageplan aus CAD laden (DXF)</button><input type="file" id="dxf" accept=".dxf" hidden><input type="file" id="pdfs" multiple hidden></div>
       <p class="klein" id="dxfmeldung" hidden></p>
       <div class="paar" id="dxfwahl" hidden><label>Grundstück ist<select id="dxfG"></select></label><label>Haus ist<select id="dxfH"></select></label></div>
       <details><summary>Grenzpunkte als Zahlen</summary><div>
@@ -281,6 +293,7 @@ dialog h2 { border: 0; padding: 0; margin: 14px 0 4px; } dialog h2:first-child {
       <label>Baugebiet<select data-p="baugebiet"><option value="">bitte wählen</option><option value="allgemein">Wohn-, Misch- oder sonstiges Gebiet</option><option value="gewerbe_industrie">Gewerbe- oder Industriegebiet</option><option value="kern">Kerngebiet</option></select></label>
       <label class="haken"><input type="checkbox" data-p="denkmal">Denkmal oder nahe an einem Denkmal</label>
       <label class="haken"><input type="checkbox" data-p="mischnutzung">Wohnen mit Laden oder Praxis im Haus</label>
+      <label class="haken"><input type="checkbox" data-p="baulast">Baulast auf dem Grundstück oder zugunsten oder zulasten eines Nachbargrundstücks</label>
     </div></details>
     <details class="gruppe" name="gruppe"><summary><span class="nr">3</span>Haus</summary><div class="inhalt">
       <div class="paar">
@@ -336,6 +349,7 @@ dialog h2 { border: 0; padding: 0; margin: 14px 0 4px; } dialog h2:first-child {
     <div id="auftakt" data-zustand="leer"><div class="karte">
       <button type="button" id="auftaktzu" title="Zurück zum Plan" aria-label="Zurück zum Plan" hidden>✕</button>
       <span class="label">Planungscheck · Münster</span>
+      <div class="wahl"><button type="button" data-ziel="" aria-pressed="true">Was geht hier</button><button type="button" data-ziel="pruefen" aria-pressed="false">Vor dem Absenden</button></div>
       <h1 id="auftakttitel">Was geht auf diesem Grundstück?</h1>
       <p class="klein" id="auftakttext"></p>
       <div class="suchzeile" id="auftaktsuche"><input type="text" id="adresse0" placeholder="Straße und Hausnummer in Münster" enterkeyhint="search" aria-label="Adresse in Münster"><button type="button" class="haupt" id="adressknopf0">Zeigen</button></div>
@@ -349,7 +363,8 @@ dialog h2 { border: 0; padding: 0; margin: 14px 0 4px; } dialog h2:first-child {
   </section>
 
   <main id="blatt">
-    <nav id="weg" aria-label="Wo Sie stehen" hidden><ol><li>Grundstück</li><li>Was passt</li><li>Ihr Haus</li><li>Mitnehmen</li></ol><p id="wegtext"></p></nav>
+    <nav id="weg" aria-label="Wo Sie stehen" hidden><div class="wahl"><button type="button" data-ziel="" aria-pressed="true">Was geht hier</button><button type="button" data-ziel="pruefen" aria-pressed="false">Vor dem Absenden</button></div><ol><li>Grundstück</li><li>Was passt</li><li>Ihr Haus</li><li>Mitnehmen</li></ol><p id="wegtext"></p></nav>
+    <section class="befund" id="absenden" hidden></section>
     <section id="grund" hidden></section>
     <section class="befund" id="lage">
       <div class="kopfzeile"><span class="label">Ihr Entwurf · Abstandsflächen</span><span class="chip" id="ampel"></span></div>
@@ -371,7 +386,7 @@ dialog h2 { border: 0; padding: 0; margin: 14px 0 4px; } dialog h2:first-child {
   <h2>Datenschutz</h2>
   <p>Diese Seite rechnet in Ihrem Browser. Ihre Planung wird nicht an uns übertragen und nicht bei uns gespeichert.</p>
   <h2>Was Ihr Browser speichert</h2>
-  <p>Ihre Angaben bleiben im Speicher Ihres Browsers auf diesem Gerät, damit sie beim nächsten Öffnen noch da sind. „Alles leeren“ unter „Angaben“ löscht sie. Die Seite setzt keine Cookies und zählt keine Besuche.</p>
+  <p>Ihre Angaben bleiben im Speicher Ihres Browsers auf diesem Gerät, damit sie beim nächsten Öffnen noch da sind. „Alles leeren“ unter „Angaben“ löscht sie. Laden Sie für „Vor dem Absenden“ Ihre PDFs, liest die Seite sie auf diesem Gerät und merkt sich nur Namen, Größe und ob ein Passwort gesetzt ist; die Dateien selbst werden weder übertragen noch gespeichert. Die Seite setzt keine Cookies und zählt keine Besuche.</p>
   <h2>Was bei einer Suche übertragen wird</h2>
   <p>Suchen Sie ein Grundstück, fragt Ihr Browser das Kataster des Landes Nordrhein-Westfalen und den Plan-Dienst der Stadt Münster. Dorthin gehen die Adresse oder das Flurstück, der Kartenausschnitt um das Grundstück und, wie bei jedem Abruf im Internet, Ihre IP-Adresse. Holen Sie die Höhen der Nachbarhäuser, lädt Ihr Browser vom Datenportal des Landes die Datei des 3D-Gebäudemodells für den Quadratkilometer, in dem das Grundstück liegt.</p>
   <h2>Wo die Seite liegt</h2>
@@ -959,9 +974,135 @@ function potenzial(a, hoechstens = 6) {
   return { zeilen, annahmen: an, baugebiet, festsetzung: { geschosse: wert(fest.geschosse), grz: wert(fest.grz), gfz: wert(fest.gfz) }, rahmen: { grundflaeche: wert(um.grundflaeche), hoehe: wert(um.hoehe) } };
 }
 
+// Vor dem Absenden: Entwurf, Zahlen im Lageplan und das Paket fürs Bauportal in einer Liste.
+// STICHWORTE und unterlage() entsprechen src/bauantrag_check/paket.py, UNTERLAGEN den Regeln in rules/; die Tests vergleichen beides.
+const STICHWORTE = [
+  ["bescheinigung+uebereinstimmung+bauo", "abstandsflaechen_bescheinigung"], ["bescheinigung+abstandsflaeche", "abstandsflaechen_bescheinigung"], ["amtlicher lageplan", "lageplan_amtlich"],
+  ["lageplan", "lageplan"], ["flurkarte", "auszug_flurkarte"], ["liegenschaftskarte", "auszug_flurkarte"], ["liegenschaftskataster", "auszug_flurkarte"],
+  ["katasterauszug", "auszug_flurkarte"], ["basiskarte", "auszug_basiskarte"], ["grundkarte", "auszug_basiskarte"], ["mass der baulichen nutzung", "berechnung_mass_baulicher_nutzung"],
+  ["masses der baulichen nutzung", "berechnung_mass_baulicher_nutzung"], ["grundflaechenzahl", "berechnung_mass_baulicher_nutzung"],
+  ["geschossflaechenzahl", "berechnung_mass_baulicher_nutzung"], ["baumassenzahl", "berechnung_mass_baulicher_nutzung"],
+  ["mass der geplanten baulichen nutzung", "berechnung_mass_baulicher_nutzung"], ["masses der geplanten baulichen nutzung", "berechnung_mass_baulicher_nutzung"],
+  ["grz", "berechnung_mass_baulicher_nutzung"], ["gfz", "berechnung_mass_baulicher_nutzung"], ["bmz", "berechnung_mass_baulicher_nutzung"],
+  ["bescheinigung+sachverstaendig+brandschutz", "brandschutz_bescheinigung_psv"], ["erklaerung+brandschutz", "brandschutz_erklaerung_entwurfsverfasser"],
+  ["bescheinigung+brandschutz", "brandschutz_bescheinigung_psv"], ["grundriss", "bauzeichnungen"], ["schnitt", "bauzeichnungen"], ["ansicht", "bauzeichnungen"],
+  ["bauzeichnung", "bauzeichnungen"], ["baubeschreibung", "baubeschreibung"], ["betriebsbeschreibung+landwirtschaft", "betriebsbeschreibung_landwirtschaftlich"],
+  ["betriebsbeschreibung+forst", "betriebsbeschreibung_landwirtschaftlich"], ["betriebsbeschreibung", "betriebsbeschreibung_gewerblich"], ["bruttorauminhalt", "kostenermittlung_bri"],
+  ["brutto rauminhalt", "kostenermittlung_bri"], ["umbauter raum", "kostenermittlung_bri"], ["umbauten raum", "kostenermittlung_bri"], ["bri", "kostenermittlung_bri"],
+  ["rohbaukosten", "kostenermittlung_rohbaukosten"], ["herstellungskosten", "kostenermittlung_herstellungskosten"], ["erhebungsbogen", "erhebungsbogen_statistik"],
+  ["statistik", "erhebungsbogen_statistik"], ["artenschutz", "artenschutz_angaben"], ["abweichung", "abweichungsantrag"], ["stellplatz", "stellplatznachweis_rechnerisch"],
+  ["zusaetzliche+besondere+vorhaben", "zusatzangaben_sonderbau"], ["wohnflaeche", "wohnflaechenberechnung"], ["berechnung+vollgeschoss", "berechnung_mass_baulicher_nutzung"]
+];
+const DATEINAME = /^([^.:;/]+) \d{4}-\d{2}-\d{2}\.pdf$/;
+const schlicht = (t) => t.normalize("NFC").toLowerCase().replace(/[äöüß_-]/g, (c) => ({ ä: "ae", ö: "oe", ü: "ue", ß: "ss" }[c] || " "));
+function unterlage(name) { // Dateiname -> Art der Bauvorlage oder null
+  const m = DATEINAME.exec(name), text = schlicht(m ? m[1] : name.replace(/\.[^.]*$/, "")), woerter = new Set(text.match(/[a-z0-9]+/g));
+  const t = STICHWORTE.find(([wort]) => schlicht(wort).split("+").every((teil) => (teil.length <= 4 ? woerter.has(teil) : text.includes(teil))));
+  return t ? t[1] : null;
+}
+const UNTERLAGEN = [ // Neubau eines Gebäudes im vereinfachten Verfahren. einordnung fehlt: gehört zur Vollständigkeit
+  { id: "baupruefvo-10-1-2-lageplan", name: "Lageplan", dokument: ["lageplan", "lageplan_amtlich"], text: "Lageplan fehlt." },
+  { id: "baupruefvo-3-3-lageplan-amtlich", name: "Amtlicher Lageplan", wenn: { baulast: [true] }, dokument: ["lageplan_amtlich"],
+    text: "Amtlicher Lageplan fehlt. Wegen der Baulast genügt ein einfacher Lageplan nicht; er muss vom Katasteramt oder einem Vermessungsingenieur stammen." },
+  { id: "baupruefvo-10-1-3-bauzeichnungen", name: "Bauzeichnungen", dokument: ["bauzeichnungen"], text: "Bauzeichnungen (Grundrisse, Schnitte, Ansichten) fehlen." },
+  { id: "baupruefvo-10-1-4-baubeschreibung", name: "Baubeschreibung", dokument: ["baubeschreibung"], text: "Baubeschreibung (amtlicher Vordruck) fehlt." },
+  { id: "baupruefvo-10-1-s2-kostenermittlung-gebaeude", name: "Umbauter Raum oder Rohbaukosten", dokument: ["kostenermittlung_bri", "kostenermittlung_rohbaukosten"],
+    text: "Berechnung des Brutto-Rauminhalts (oder der Rohbaukosten) fehlt." },
+  { id: "baupruefvo-10-1-1-katasterauszug", name: "Auszug aus dem Kataster", wenn: { planungsrecht: ["34", "35"] }, dokument: ["auszug_flurkarte", "auszug_basiskarte", "lageplan_amtlich"],
+    text: "Auszug aus dem Liegenschaftskataster (Flurkarte oder Amtliche Basiskarte) fehlt." },
+  { id: "baupruefvo-3-2-mass-baulicher-nutzung", name: "Berechnung zu GRZ, GFZ und Vollgeschossen", wenn: { planungsrecht: ["bplan", "satzung"], mass_festgesetzt: [true] }, dokument: ["berechnung_mass_baulicher_nutzung"],
+    text: "Berechnung zum Maß der baulichen Nutzung (GRZ, GFZ, Vollgeschosse bzw. BMZ) fehlt." },
+  { id: "bauo-74-3-nr2-abweichungsantrag", name: "Antrag auf Abweichung", wenn: { abweichung_erforderlich: [true] }, dokument: ["abweichungsantrag"],
+    text: "Das Vorhaben braucht eine Abweichung, dafür fehlt der gesonderte, begründete Antrag. Ohne Antrag wird sie nicht geprüft und von einer Genehmigung durch Fristablauf nicht erfasst." },
+  { id: "bauo-69-2-befreiungsantrag", name: "Antrag auf Ausnahme oder Befreiung", wenn: { befreiung_erforderlich: [true] }, dokument: ["abweichungsantrag"],
+    text: "Das Vorhaben braucht eine Ausnahme oder Befreiung vom Bebauungsplan, dafür fehlt der gesonderte, begründete Antrag." },
+  { id: "bauo-68-2-brandschutz-bescheinigung-gk4-5", einordnung: "vor_erteilung", name: "Brandschutz-Bescheinigung", wenn: { gebaeudeklasse: [4, 5] }, dokument: ["brandschutz_bescheinigung_psv"],
+    text: "Brandschutz-Bescheinigung eines Prüfsachverständigen (mit Erklärung zur Kontrolle der Bauausführung) liegt noch nicht vor. Sie ist vor der Genehmigung nachzureichen." },
+  { id: "bauo-68-2-brandschutz-erklaerung-gk1-3", einordnung: "vor_erteilung", name: "Brandschutz-Erklärung", wenn: { gebaeudeklasse: [1, 2, 3] }, dokument: ["brandschutz_erklaerung_entwurfsverfasser"],
+    text: "Brandschutz-Erklärung des Entwurfsverfassers liegt noch nicht vor. Sie ist vor der Genehmigung nachzureichen." },
+  { id: "vordruck-i2-12-erhebungsbogen-statistik", einordnung: "hinweis", name: "Erhebungsbogen für die Baustatistik", dokument: ["erhebungsbogen_statistik"],
+    text: "Erhebungsbogen für die Baustatistik nicht beigefügt. Er wird von allen ausgewerteten Bauämtern erwartet, betrifft aber nicht die Prüfbarkeit des Vorhabens." },
+  { id: "vordruck-i2-13-artenschutz", einordnung: "hinweis", name: "Angaben zum Artenschutz", dokument: ["artenschutz_angaben"], text: "Angaben zum Artenschutz fehlen." },
+];
+const FAKT = { planungsrecht: "Lage des Grundstücks", gebaeudeklasse: "Gebäudeklasse", mass_festgesetzt: "den Werten aus dem Bebauungsplan" };
+const MB = 1024 * 1024;
+
+function planWerte(a, L) { // das Haus gegen Vollgeschosse, GRZ und GFZ aus dem Bebauungsplan; gezählt ist nur dieses Haus
+  const fs = a.festsetzung || {}, fg = Math.abs(flaeche(L.g)), fh = Math.abs(flaeche(L.h)), n = a.oberirdische_geschosse;
+  return [["Geschosse", n, fs.geschosse, String], ["GRZ", fh / fg, fs.grz, de], ["GFZ", n ? fh * n / fg : null, fs.gfz, de]].filter(([, ist, soll]) => soll > 0 && ist != null)
+    .map(([name, ist, soll, zeig]) => ({ name, zuviel: ist > soll + 0.0005, text: `${name} ${zeig(ist)} bei zulässig ${zeig(soll)}` }));
+}
+
+function vorAbsenden(a, dateien = []) { // Punkte mit status "fehl", "offen" (Angabe fehlt), "selbst" (prüfen Sie), "ok" oder "nicht" (prüft die Seite nicht); dateien: [{ name, groesse, schutz }]
+  const L = lage(a), punkte = [], punkt = (kennung, status, titel, text, mehr = {}) => punkte.push({ kennung, status, titel, text, ...mehr });
+  if (!L) return punkte;
+  const eng = L.waende.filter((W) => !W.ok), mitHaus = L.h.length > 0;
+  if (!mitHaus) punkt("abstand", "offen", "Ihr Haus fehlt noch", "Lageplan aus dem CAD laden oder ein Haus in den Plan setzen.", { frage: "haus" });
+  else if (L.fehlt.length) punkt("abstand", "offen", "Abstand zur Grenze", `Es ${L.fehlt.length === 1 ? "fehlt" : "fehlen"} noch: ${L.fehlt.join(", ")}.`);
+  else if (!L.auf) punkt("abstand", "fehl", "Haus und Grundstück", "Das Haus liegt nicht ganz auf dem Grundstück.", { folge: "Lage und Maße im Plan prüfen." });
+  else if (eng.length) punkt("abstand", "fehl", "Abstand zur Grenze", eng.map((W) => `Wand ${W.nr}: ${de(-W.luft)} m zu nah.`).join(" "),
+    { folge: "Verschieben, drehen oder niedriger planen; unten stehen die Wege. Bleibt es dabei, beantragen Sie die Abweichung ausdrücklich und begründen sie auf einem eigenen Blatt." });
+  else { const W0 = L.waende.reduce((x, y) => (y.luft < x.luft ? y : x));
+    punkt("abstand", "ok", "Abstand zur Grenze", `Alle ${L.waende.length} Wände halten den Abstand. Engste Stelle: Wand ${W0.nr} mit ${de(W0.luft)} m Luft.`); }
+  const abweichung = mitHaus && !L.fehlt.length && L.auf && eng.length > 0;
+
+  const werte = mitHaus ? planWerte(a, L) : [], drueber = werte.filter((w) => w.zuviel), mitPlan = a.planungsrecht === "bplan" || a.planungsrecht === "satzung";
+  if (drueber.length) punkt("plan", "fehl", "Werte aus dem Bebauungsplan", `${drueber.map((w) => w.text).join(", ")}.`, { folge: "Umplanen oder eine Ausnahme oder Befreiung ausdrücklich beantragen und auf einem eigenen Blatt begründen." });
+  else if (werte.length) { const grz = werte.some((w) => w.name === "GRZ");
+    punkt("plan", grz ? "selbst" : "ok", "Werte aus dem Bebauungsplan", `${werte.map((w) => w.text).join(", ")}. ` + (grz ? "Gezählt ist nur das Haus. Bei der GRZ zählen Stellplätze, Zufahrten und Nebenanlagen mit; das rechnen Sie selbst." : "Jedes Geschoss ist als Vollgeschoss gezählt.")); }
+  else if (mitPlan && mitHaus) punkt("plan", "offen", "Werte aus dem Bebauungsplan", "Vollgeschosse, GRZ und GFZ aus dem Plan unten eintragen, dann vergleicht die Seite.");
+  if (mitPlan) punkt("baugrenzen", "nicht", "Baugrenzen, Baulinien, Bauweise", "Stehen im Bebauungsplan. Die Seite liest den Plan nicht.");
+  else if (String(a.planungsrecht) === "34") punkt("einfuegen", "nicht", "Einfügen in die Umgebung", "Die Seite misst, was die Nachbarn gebaut haben. Ob sich das Haus einfügt, beurteilt das Bauamt.");
+  if (mitHaus) punkt("mehr", "nicht", "Nebengebäude, mehrere Häuser, gestaffelte Höhen", "Die Seite kennt ein Haus mit einer Wandhöhe. Garagen, Nebengebäude und Abstände zwischen Gebäuden rechnen Sie selbst nach.");
+
+  const wohnungen = (a.wohnungen || []).filter((w) => Number.isInteger(w.anzahl) && w.anzahl > 0 && istZahl(w.wohnflaeche)), ist = a.antrag || {};
+  const halte = (kennung, titel, soll, einheit, hilfe) => { const n = ist[kennung];
+    punkt(kennung, n == null ? "offen" : n < soll ? "fehl" : "ok", titel, n == null ? `Nötig: ${soll}${einheit}. Was zeigt Ihr Lageplan?` : `Im Lageplan ${n}${einheit}, nötig ${soll}${einheit}.`,
+      { frage: `antrag.${kennung}`, ...(n != null && n < soll ? { folge: hilfe } : {}) }); };
+  if (!wohnungen.length) punkt("zahlen", "offen", "Stellplätze, Fahrräder, Spielfläche", "Wie viele Wohnungen in welcher Größe? Daraus folgen die nötigen Zahlen.", { frage: "wohnungen" });
+  else {
+    if (!a.oepnv) punkt("stellplaetze", "offen", "Stellplätze", "Wie liegt das Grundstück zu Bus und Bahn? Danach richtet sich der Abschlag.", { frage: "oepnv" });
+    else halte("stellplaetze", "Stellplätze", stellplaetzeKfz(wohnungen, a.oepnv).mit_abschlag, "", "Plätze ergänzen. Sie dürfen bis 300 m zu Fuß entfernt liegen, wenn sie rechtlich gesichert sind.");
+    const rad = fahrradabstellplaetze(wohnungen), spiel = a.vorhaben ? spielplatz(wohnungen, a.einraumwohnungen || 0, a.vorhaben) : null;
+    if (rad !== null) halte("raeder", "Fahrradplätze", rad, "", "Plätze ergänzen; sie müssen auf dem Grundstück liegen.");
+    if (spiel) halte("spielflaeche", "Spielfläche für Kleinkinder", spiel.flaeche, " m²", "Fläche vergrößern. Sie entfällt, wenn nebenan ein nutzbarer Spielplatz liegt oder entsteht.");
+  }
+  const baeume = (a.baeume || []).filter((b) => istZahl(b.stammumfang_cm) && geschuetzt(b, a.planungsrecht));
+  if (baeume.length) punkt("baeume", "selbst", "Geschützte Bäume", `Bestandsplan mit ${baeume.length === 1 ? "dem geschützten Baum" : `den ${baeume.length} geschützten Bäumen`} beilegen`
+    + (baeume.some((b) => b.faellen) ? ", dazu den Antrag der Stadt für jeden Baum, der gefällt oder beschädigt wird." : "."));
+
+  if (!a.vorhaben) punkt("paket", "offen", "Unterlagen", "Neubau oder Umbau? Danach richtet sich, was ins Paket gehört.", { frage: "vorhaben" });
+  else if (a.vorhaben !== "errichtung") punkt("paket", "nicht", "Unterlagen", "Welche Unterlagen ins Paket gehören, kennt die Seite bisher nur für den Neubau.");
+  else {
+    const fs = a.festsetzung || {}, pdf = dateien.filter((d) => /\.pdf$/i.test(d.name)), typ = pdf.map((d) => unterlage(d.name));
+    const fakten = { planungsrecht: a.planungsrecht == null ? null : String(a.planungsrecht), gebaeudeklasse: a.gebaeudeklasse, baulast: !!a.baulast,
+      mass_festgesetzt: fs.geschosse > 0 || fs.grz > 0 || fs.gfz > 0 ? true : null, abweichung_erforderlich: abweichung, befreiung_erforderlich: drueber.length > 0 };
+    const gilt = UNTERLAGEN.filter((r) => Object.entries(r.wenn || {}).every(([f, erlaubt]) => fakten[f] == null || erlaubt.includes(fakten[f]))); // was nicht ausgeschlossen ist
+    const art = (e) => gilt.filter((r) => r.einordnung === e).map((r) => r.name).join(", ");
+    if (!dateien.length) punkt("paket", "offen", "Ihr Paket fürs Bauportal", `Ins Paket gehören: ${art(undefined)}.${art("vor_erteilung") ? ` Vor der Genehmigung: ${art("vor_erteilung")}.` : ""} Von den Bauämtern erwartet: ${art("hinweis")}. `
+      + "Ziehen Sie die PDFs auf die Seite oder wählen Sie sie aus. Sie bleiben auf Ihrem Gerät; die Seite liest nur Namen, Größe und ob ein Passwort gesetzt ist.", { frage: "paket" });
+    else for (const r of gilt) {
+      const offen = Object.keys(r.wenn || {}).filter((f) => fakten[f] == null).map((f) => FAKT[f]), da = pdf.filter((d, i) => r.dokument.includes(typ[i])).map((d) => d.name);
+      if (da.length) punkt(r.id, "ok", r.name, da.join(", "));
+      else if (offen.length) punkt(r.id, "selbst", r.name, `Ob das ins Paket gehört, hängt an ${offen.join(" und ")}; die Angabe fehlt noch.`);
+      else punkt(r.id, r.einordnung ? "selbst" : "fehl", r.name, r.text);
+    }
+    for (const d of dateien) {
+      if (!/\.pdf$/i.test(d.name)) punkt("portal", "fehl", d.name, "Kein PDF. Das Bauportal nimmt nur PDF an.");
+      else if (d.groesse > 30 * MB) punkt("portal", "fehl", d.name, "Größer als 30 MB. Das Bauportal nimmt die Datei so nicht an.");
+      if (d.schutz) punkt("portal", "fehl", d.name, "Mit einem Passwort geschützt. Bitte ohne Schutz hochladen.");
+    }
+    if (dateien.reduce((s, d) => s + d.groesse, 0) > 250 * MB) punkt("portal", "fehl", "Das ganze Paket", "Größer als 250 MB.");
+    const namen = (liste) => liste.map((d) => d.name).join(", "), schief = pdf.filter((d) => !DATEINAME.test(d.name)), fremd = pdf.filter((d, i) => !typ[i]);
+    if (schief.length) punkt("name", "selbst", "Dateinamen", `${namen(schief)}: Das Infoblatt zum Bauportal nennt das Muster „Inhalt JJJJ-MM-TT.pdf“, zum Beispiel „Lageplan 2026-11-02.pdf“.`);
+    if (fremd.length) punkt("unerkannt", "selbst", "Nicht zugeordnet", `${namen(fremd)}: Am Namen erkennt die Seite nicht, welche Unterlage das ist.`);
+  }
+  return punkte;
+}
+
 if (typeof module !== "undefined") {
   module.exports = { linkSchreibe, linkLies, adressTeile, adressTreffer, dxfSchreibe, de, stellplaetzeKfz, fahrradabstellplaetze, spielplatz, geschuetzt, abstandsflaeche, spielraum, feuerwehr,
-    flaeche, innen, liegtAuf, mitStrassen, freiraum, dxfText, dxfPolygone, lage, loesung, katasterUrl, katasterLies, strassenVorschlag, bplanUrl, bplanTreffer, starthaus, potenzial, umgebung, hoehenUrl, hoehenLies };
+    flaeche, innen, liegtAuf, mitStrassen, freiraum, dxfText, dxfPolygone, lage, loesung, katasterUrl, katasterLies, strassenVorschlag, bplanUrl, bplanTreffer, starthaus, potenzial, umgebung, hoehenUrl, hoehenLies, unterlage, UNTERLAGEN, planWerte, vorAbsenden };
 }
 </script>
 
@@ -974,7 +1115,8 @@ const LEER = { vorhaben: null, planungsrecht: null, gebaeudeklasse: null, oberir
   wandhoehe: null, neigung: null, dachhoehe: null, grundstueck: [], haus: [],
   kataster: { gemarkung: "Münster", flur: null, nummer: null, kennzeichen: null, lage: null, stand: null }, umgebung: { flurstuecke: [], gebaeude: [] },
   bplan: null, // nach einem Abruf in Münster: { kraft: [...], verfahren: [...] }
-  annahmen: { ...ANNAHMEN }, festsetzung: { geschosse: null, grz: null, gfz: null }, nord: false, ursprung: null }; // ursprung: Ecke im Netz des Katasters, für die DXF-Ausgabe
+  annahmen: { ...ANNAHMEN }, festsetzung: { geschosse: null, grz: null, gfz: null }, nord: false, ursprung: null,
+  ziel: null, baulast: false, antrag: { stellplaetze: null, raeder: null, spielflaeche: null }, paket: [] }; // ziel "pruefen": vor dem Absenden; antrag: Zahlen aus dem eigenen Lageplan; paket: [{ name, groesse, schutz }]; ursprung: Ecke im Netz des Katasters, für die DXF-Ausgabe
 const BEISPIEL = { ...LEER, vorhaben: "errichtung", planungsrecht: "34", gebaeudeklasse: 4, oberirdische_geschosse: 4,
   baugebiet: "allgemein", zweiter_rettungsweg: "feuerwehr", bruestung_anleiterstelle: 10.5, entfernung_verkehrsflaeche: 25, oepnv: "bus_10",
   wohnungen: [{ anzahl: 6, wohnflaeche: 65, gefoerdert: false }, { anzahl: 2, wohnflaeche: 45, gefoerdert: false }],
@@ -1177,11 +1319,7 @@ function zeichnePlan(L, geist, schau = null) {
 const kachel = (label, stark, text) => `<div class="weg"><span class="label">${label}</span><strong>${stark}</strong><p>${text}</p></div>`;
 
 function planKachel(L) { // der Entwurf gegen die Werte aus dem Bebauungsplan; gezählt ist nur dieses Haus
-  const fs = a.festsetzung || {}, fg = Math.abs(flaeche(L.g)), fh = Math.abs(flaeche(L.h)), n = a.oberirdische_geschosse, teile = [];
-  let drueber = false;
-  const halte = (name, ist, soll, zeig) => { if (!(soll > 0) || ist == null) return; const zuviel = ist > soll + 0.0005; drueber = drueber || zuviel;
-    teile.push(`${name} ${zeig(ist)} bei zulässig ${zeig(soll)}${zuviel ? " (darüber)" : ""}`); };
-  halte("Geschosse", n, fs.geschosse, String); halte("GRZ", fh / fg, fs.grz, de); halte("GFZ", n ? fh * n / fg : null, fs.gfz, de);
+  const fg = Math.abs(flaeche(L.g)), fh = Math.abs(flaeche(L.h)), werte = planWerte(a, L), drueber = werte.some((w) => w.zuviel), teile = werte.map((w) => w.text + (w.zuviel ? " (darüber)" : ""));
   return teile.length ? kachel("Bebauungsplan", drueber ? "Über den Werten aus dem Plan" : "Innerhalb der Werte aus dem Plan", `${teile.join(", ")}. Gezählt ist nur dieses Haus, ohne Stellplätze, Zufahrten und Nebenanlagen; jedes Geschoss zählt als Vollgeschoss.`)
     : kachel("Überbaut", `${Math.round(fh)} von ${Math.round(fg)} m²`, `Das Haus bedeckt ${Math.round(100 * fh / fg)} % des Grundstücks. Tragen Sie oben die Werte aus dem Bebauungsplan ein, dann vergleicht die Seite.`);
 }
@@ -1244,6 +1382,24 @@ function zeichneLage(L) {
     + L.waende.map((W) => `<tr${W.ok ? "" : ' class="fehl"'}><td>${W.nr}</td><td>${de(W.w.breite)}</td><td>${de(W.r.hoehe_h)}</td><td>${de(W.sp.mindestabstand)}</td><td>${de(W.frei)}</td><td>${W.ok ? "+" : "−"}${de(Math.abs(W.luft))}</td></tr>`).join("")
     + `</tbody></table><p class="klein" style="margin-top:8px">Alle Maße in Metern. „Frei“ ist senkrecht zur Wand an der engsten Stelle gemessen, bei Straßen bis zur Mitte.</p>`
     + `<details class="rechenweg"><summary>Rechenweg je Wand</summary>${rechnung}<p>Quelle: Bauordnung NRW, Abstandsflächen.</p></details>`];
+}
+
+const GRUPPEN = [["fehl", "Passt nicht"], ["offen", "Angaben fehlen"], ["selbst", "Prüfen Sie selbst"], ["ok", "In Ordnung"], ["nicht", "Prüft die Seite nicht"]];
+function zeichneAbsenden(liste) { // die Liste vor dem Absenden: erst was nicht passt, zuletzt was die Seite nicht prüft
+  const n = (s) => liste.filter((p) => p.status === s).length, status = n("fehl") ? "fehl" : n("offen") ? "offen" : "ok";
+  const wert = (p) => { const [o, k] = ziel(p); return o[k] ?? ""; };
+  const frage = (p) => !p.frage ? "" : p.frage === "haus" ? `<div class="knoepfe"><button type="button" class="haupt" data-dxf>Lageplan aus CAD laden (DXF)</button><button type="button" data-starthaus>Haus von Hand setzen</button></div>`
+    : p.frage === "paket" ? `<div class="knoepfe"><button type="button" class="haupt" data-paket>PDFs auswählen</button></div>`
+    : p.frage === "wohnungen" ? `<div class="knoepfe"><button type="button" data-gruppe="3">Wohnungen eintragen</button></div>`
+    : p.frage === "vorhaben" || p.frage === "oepnv" ? `<label class="ist">${{ vorhaben: "Vorhaben", oepnv: "Bus und Bahn" }[p.frage]}<select data-p="${p.frage}">${$("angaben").querySelector(`[data-p="${p.frage}"]`).innerHTML}</select></label>`
+    : `<label class="ist">Im Lageplan<input type="number" min="0" step="1" data-p="${p.frage}" value="${wert(p.frage)}"></label>`;
+  const punkt = (p) => `<div class="punkt" data-s="${p.status}"><i></i><div><h3>${esc(p.titel)}</h3><p>${esc(p.text)}</p>${p.folge ? `<p class="folge">${esc(p.folge)}</p>` : ""}${frage(p)}</div></div>`;
+  $("absenden").dataset.status = status;
+  setze($("absenden"), `<div class="kopfzeile"><span class="label">Vor dem Absenden${a.kataster.lage ? ` · ${esc(a.kataster.lage)}` : ""}</span><span class="chip">${{ fehl: "Passt nicht", offen: "Angaben fehlen", ok: "Geprüft" }[status]}</span></div>`
+    + `<h1 class="urteil" aria-live="polite">${status === "fehl" ? `<em>${n("fehl") === 1 ? "Ein Punkt passt" : `${n("fehl")} Punkte passen`} nicht.</em>` : status === "offen" ? `Für das Urteil <em>${n("offen") === 1 ? "fehlt eine Angabe" : `fehlen ${n("offen")} Angaben`}.</em>` : `Soweit die Seite prüft, <em>passt alles.</em>`}</h1>`
+    + `<p class="lead">Ihr Entwurf, die Zahlen im Lageplan und das Paket fürs Bauportal in einer Liste. Was die Seite nicht prüft, steht am Ende.</p>`
+    + GRUPPEN.map(([s, titel]) => (n(s) ? `<h2>${titel} · ${n(s)}</h2>` + liste.filter((p) => p.status === s).map(punkt).join("") : "")).join("")
+    + (a.paket.length ? `<p class="klein">${a.paket.length === 1 ? "Eine Datei" : `${a.paket.length} Dateien`} im Paket. <button type="button" class="link" data-paket>Weitere dazu</button> · <button type="button" class="link" data-paketleer>Paket leeren</button></p>` : ""));
 }
 
 function neu() { fuelleFormular(); zeichneBlatt(); }
@@ -1337,6 +1493,10 @@ $("blatt").addEventListener("click", (e) => {
   }
   if (e.target.hasAttribute("data-starthaus")) document.querySelector('[data-neu="haus"]').click();
   if (e.target.hasAttribute("data-hoehen")) holeHoehen();
+  if (e.target.hasAttribute("data-dxf")) $("dxf").click();
+  if (e.target.hasAttribute("data-paket")) $("pdfs").click();
+  if (e.target.hasAttribute("data-paketleer")) { a.paket = []; neu(); }
+  if (e.target.dataset.gruppe) { angabenAuf(true); const g = $("angaben").querySelectorAll("details.gruppe")[e.target.dataset.gruppe]; g.open = true; g.scrollIntoView({ block: "start" }); }
   const d = e.target.hasAttribute("data-einpassen") && loesung(a);
   if (d) { // das Haus gleitet an den gefundenen Standort
     beende();
@@ -1369,6 +1529,7 @@ $("spiel").addEventListener("click", () => { $("buehne").scrollIntoView({ behavi
 function auftritt() { // nach dem Abruf: Umriss läuft um, Umgebung blendet ein, dann Geschoss für Geschoss bis zur besten Stufe
   const L = lage(a);
   if (!L) return;
+  if (a.ziel === "pruefen") return;
   if (ruhig) { stufenfilm(true); return; }
   $("plan").classList.add("auftritt");
   zeichnePlan(L, null);
@@ -1393,6 +1554,12 @@ async function ladeDxf(datei) {
   dxfListe = dxfPolygone(dxfText(await datei.arrayBuffer())).sort((x, y) => Math.abs(flaeche(y.punkte)) - Math.abs(flaeche(x.punkte)));
   $("dxfmeldung").hidden = false; $("dxfwahl").hidden = !dxfListe.length;
   if (!dxfListe.length) { $("dxfmeldung").textContent = "In der Datei sind keine geschlossenen Linienzüge. Grundstück und Haus bitte als geschlossene Polylinien exportieren."; return; }
+  if (a.ursprung) { // das Grundstück kommt aus dem Kataster: Der größte Umriss im selben Netz, der darauf liegt, ist das Haus
+    const g = punkte(a.grundstueck), im = (p) => p.punkte.map(([x, y]) => [rund(x - a.ursprung[0]), rund(y - a.ursprung[1])]);
+    const i = dxfListe.findIndex((p) => liegtAuf(im(p), g) && Math.abs(flaeche(p.punkte)) < 0.9 * Math.abs(flaeche(g)));
+    if (i >= 0) { beende(); a.haus = im(dxfListe[i]).map(([x, y]) => ecke(x, y)); $("dxfwahl").hidden = true;
+      $("dxfmeldung").textContent = `Das Haus aus Ihrer Datei (Layer ${dxfListe[i].layer}) steht jetzt auf dem Grundstück aus dem Kataster. Wandhöhe und Dach bitte ergänzen.`; neu(); return; }
+  }
   const hi = dxfListe.findIndex((p, i) => i > 0 && p.punkte.every((pt) => innen(pt, dxfListe[0].punkte)));
   const wahl = dxfListe.map((p, i) => `<option value="${i}">${esc(p.layer)} · ${p.punkte.length} Punkte</option>`).join("");
   $("dxfG").innerHTML = wahl; $("dxfH").innerHTML = `<option value="-1">keines</option>` + wahl; $("dxfG").value = 0; $("dxfH").value = hi;
@@ -1404,7 +1571,18 @@ let ueber = 0; // Datei über der Seite
 addEventListener("dragenter", (e) => { e.preventDefault(); ueber++; document.body.classList.add("ziel"); });
 addEventListener("dragleave", () => { if (--ueber <= 0) { ueber = 0; document.body.classList.remove("ziel"); } });
 addEventListener("dragover", (e) => e.preventDefault());
-addEventListener("drop", (e) => { e.preventDefault(); ueber = 0; document.body.classList.remove("ziel"); ladeDxf(e.dataTransfer.files[0]); });
+async function nimmPaket(dateien) { // gemerkt werden nur Name, Größe und ob ein Passwort gesetzt ist; die Dateien bleiben auf dem Gerät
+  if (!dateien.length) return;
+  const dazu = await Promise.all(dateien.map(async (d) => ({ name: d.name, groesse: d.size,
+    schutz: /\.pdf$/i.test(d.name) && d.size <= 30 * MB && /\/Encrypt\b/.test(new TextDecoder("latin1").decode(await d.arrayBuffer())) })));
+  beende(); a.paket = [...a.paket.filter((p) => !dazu.some((d) => d.name === p.name)), ...dazu]; a.ziel = "pruefen"; neu();
+}
+$("pdfs").addEventListener("change", (e) => { nimmPaket([...e.target.files]); e.target.value = ""; });
+addEventListener("drop", (e) => { e.preventDefault(); ueber = 0; document.body.classList.remove("ziel");
+  const alle = [...e.dataTransfer.files], dxf = alle.find((d) => /\.dxf$/i.test(d.name));
+  if (dxf) ladeDxf(dxf);
+  nimmPaket(alle.filter((d) => d !== dxf)); });
+document.addEventListener("click", (e) => { const z = e.target.dataset && e.target.dataset.ziel; if (z === undefined) return; beende(); a.ziel = z || null; vorhangAuf(vorhang); });
 
 // Kataster: Flurstück, Nachbarn und Gebäude holen; Straßen an den Kanten vorschlagen
 const hole = async (adresse, lies = katasterLies, frist = 15000) => { const r = await fetch(adresse, { signal: AbortSignal.timeout(frist) }); if (!r.ok) throw new Error(r.status); return lies(await r.text()); };
@@ -1414,8 +1592,9 @@ function vorhangAuf(zustand, meldung = "") { // Einstieg zeigen: "leer", "link",
   vorhang = zustand;
   $("auftaktmeldung").textContent = meldung;
   $("auftaktmeldung").hidden = !meldung;
-  $("auftakttitel").textContent = { link: (linkZiel && linkZiel.ort) || "Ihr Grundstück", laedt: "Einen Moment …", wahl: "Welches Flurstück?" }[zustand] || "Was geht auf diesem Grundstück?";
+  $("auftakttitel").textContent = { link: (linkZiel && linkZiel.ort) || "Ihr Grundstück", laedt: "Einen Moment …", wahl: "Welches Flurstück?" }[zustand] || (a.ziel === "pruefen" ? "Passt alles, bevor es ans Bauamt geht?" : "Was geht auf diesem Grundstück?");
   $("auftakttext").textContent = zustand === "wahl" ? "Zu dieser Adresse gibt es mehrere Flurstücke."
+    : a.ziel === "pruefen" ? (zustand === "link" ? "Ein Klick holt" : "Adresse eintragen. Die Seite holt") + " das Grundstück aus dem Kataster. Danach laden Sie Ihren Lageplan und die PDFs fürs Bauportal und sehen in einer Liste, was passt, was nicht passt und was Sie selbst prüfen."
     : (zustand === "link" ? "Ein Klick zeigt" : "Adresse eintragen. Sekunden später sehen Sie") + " das Grundstück aus dem Kataster, den Bebauungsplan und das größte Haus je Geschosszahl, mit Stellplätzen und Spielfläche nach Münsteraner Satzung. Als DXF geht es weiter in Ihr CAD.";
   zeichneBlatt();
 }
@@ -1535,11 +1714,20 @@ function zeichneBlatt() {
 
   const L = lage(a);
   $("lage").hidden = !L || !L.h.length; // ohne Haus gibt es noch nichts zu beurteilen
-  const stelle = !L ? 0 : !L.h.length ? 1 : L.fehlt.length || !L.auf || L.waende.some((W) => !W.ok) ? 2 : 3;
+  const pruefen = a.ziel === "pruefen", liste = pruefen && L ? vorAbsenden(a, a.paket) : [], hakt = (p) => p.status === "fehl" || p.status === "offen";
+  const stelle = !L ? 0 : pruefen ? (liste.some((p) => hakt(p) && (p.kennung === "abstand" || p.kennung === "plan")) ? 1 : liste.some(hakt) ? 2 : 3)
+    : !L.h.length ? 1 : L.fehlt.length || !L.auf || L.waende.some((W) => !W.ok) ? 2 : 3;
+  const ueberPlan = !!L && L.h.length > 0 && planWerte(a, L).some((w) => w.zuviel);
+  document.querySelectorAll("[data-ziel]").forEach((b) => b.setAttribute("aria-pressed", String(b.dataset.ziel === (a.ziel || ""))));
   $("weg").hidden = !L;
-  [...$("weg").querySelectorAll("li")].forEach((li, i) => { li.className = i < stelle ? "fertig" : i === stelle ? "jetzt" : ""; });
-  $("wegtext").textContent = !L ? "" : stelle === 1 ? "Wählen Sie unten eine Geschosszahl. Der Plan zeigt das größte Haus, das dann noch die Abstände zur Grenze einhält. Mit „Dieses Haus in den Plan“ arbeiten Sie damit weiter."
-    : stelle === 3 ? "Das Haus hält die Abstände ein. „DXF“ nimmt Grundstück, Umgebung und Abstandsflächen mit in Ihr CAD, „PDF“ gibt das Blatt für die Akte."
+  $("absenden").hidden = !liste.length;
+  if (liste.length) zeichneAbsenden(liste);
+  [...$("weg").querySelectorAll("li")].forEach((li, i) => { li.className = i < stelle ? "fertig" : i === stelle ? "jetzt" : ""; li.textContent = (pruefen ? ["Grundstück", "Ihr Entwurf", "Zahlen und Paket", "Absenden"] : ["Grundstück", "Was passt", "Ihr Haus", "Mitnehmen"])[i]; });
+  $("wegtext").textContent = !L ? "" : pruefen ? ["", !L.h.length ? "Laden Sie Ihren Lageplan als DXF oder setzen Sie das Haus von Hand. Danach geht die Seite Punkt für Punkt durch."
+      : "Am Entwurf ist noch etwas offen. Die Liste sagt, was und was daraus folgt.", "Der Entwurf steht. Jetzt die Zahlen aus Ihrem Lageplan und das Paket fürs Bauportal.",
+      "Soweit die Seite prüft, passt alles. Was Sie selbst prüfen und was die Seite nicht prüft, steht in der Liste. „PDF“ gibt sie für die Akte."][stelle]
+    : stelle === 1 ? "Wählen Sie unten eine Geschosszahl. Der Plan zeigt das größte Haus, das dann noch die Abstände zur Grenze einhält. Mit „Dieses Haus in den Plan“ arbeiten Sie damit weiter."
+    : stelle === 3 ? (ueberPlan ? "Das Haus hält die Abstände ein, liegt aber über den Werten aus dem Bebauungsplan. Unten steht, wo." : "Das Haus hält die Abstände ein. „DXF“ nimmt Grundstück, Umgebung und Abstandsflächen mit in Ihr CAD, „PDF“ gibt das Blatt für die Akte.") + " Steht der Entwurf, prüft „Vor dem Absenden“ ihn zusammen mit Ihrem Paket."
     : L.fehlt.length ? "Für das Urteil fehlen noch Angaben. Tragen Sie sie unten ein, die Seite rechnet sofort."
     : "Das Haus hält den Abstand noch nicht ein. Unten steht, was hilft. Sie können das Haus im Plan auch ziehen und drehen.";
   const zustand = vorhang || (L ? null : "leer");
@@ -1553,9 +1741,10 @@ function zeichneBlatt() {
   if (schluessel !== passt.schluessel && !(zug && zug.art === "g")) passt = { schluessel, P: potenzial({ ...a, rahmen }), wahl: null };
   const P = passt.P, moeglich = P ? P.zeilen.filter((r) => r.haus && !r.ueber && !r.hoch) : [];
   const meiste = Math.max(0, ...moeglich.map((r) => r.wohnungen)), beste = moeglich.find((r) => r.wohnungen === meiste) || null;
-  if (P && !moeglich.some((r) => r.geschosse === passt.wahl)) passt.wahl = beste ? beste.geschosse : null; // aufgeklappt ist zuerst die Stufe mit den meisten Wohnungen
+  if (pruefen) passt.wahl = null; // der Entwurf steht schon: kein vorgeschlagenes Haus im Plan
+  else if (P && !moeglich.some((r) => r.geschosse === passt.wahl)) passt.wahl = beste ? beste.geschosse : null; // aufgeklappt ist zuerst die Stufe mit den meisten Wohnungen
   const abstaende = L ? zeichneLage(L) : []; // der Plan zeigt die gewählte Stufe, deshalb erst danach
-  $("passt").hidden = !P;
+  $("passt").hidden = !P || pruefen;
   if (P) {
     const mz = (n, ein, mehr) => `${n} ${n === 1 ? ein : mehr}`, reihe = (v) => (v.length > 1 ? `${v.slice(0, -1).join(", ")} und ${v[v.length - 1]} Geschosse` : mz(v[0], "Geschoss", "Geschosse"));
     const stufe = (r) => { const offen = r.geschosse === passt.wahl, grenze = { grz: " Die GRZ begrenzt hier die Grundfläche.", gfz: " Die GFZ begrenzt hier die Geschossfläche.", umgebung: " Die größte Grundfläche der Nachbarn begrenzt hier das Haus." }[r.grenze] || "";
@@ -1591,10 +1780,10 @@ function zeichneBlatt() {
     setze($("grund"), `<span class="label">Grundstück</span>` + (k.kennzeichen ? `<div class="name">${esc(k.lage || "Flurstück ohne Adresse")}</div>`
         + `<p class="klein">Gemarkung ${esc(k.gemarkung)} · Flur ${esc(k.flur)} · Flurstück ${esc(k.nummer)}${k.stand ? ` · Kataster vom ${esc(datum(k.stand))}` : ""}</p>` : "")
       + `<div class="kacheln"><div><b>${Math.round(Math.abs(flaeche(L.g)))}<small>m²</small></b><span class="label">Grundstück</span></div>`
-      + (beste ? `<div class="akzent"><b>${beste.wohnungen}</b><span class="label">Wohnungen höchstens</span></div><div><b>${beste.wohnflaeche}<small>m²</small></b><span class="label">Wohnfläche höchstens</span></div>` : "") + `</div>`
-      + `<p class="klein">${!beste ? "Mit diesen Vorgaben findet die Seite kein Haus von mindestens 4 m Breite."
+      + (beste && !pruefen ? `<div class="akzent"><b>${beste.wohnungen}</b><span class="label">Wohnungen höchstens</span></div><div><b>${beste.wohnflaeche}<small>m²</small></b><span class="label">Wohnfläche höchstens</span></div>` : "") + `</div>`
+      + (pruefen ? "" : `<p class="klein">${!beste ? "Mit diesen Vorgaben findet die Seite kein Haus von mindestens 4 m Breite."
         : mitPlan || rahmen ? `Gerechnet mit den Abständen zur Grenze${mitPlan ? `${rahmen ? "," : " und"} Ihren Werten aus dem Bebauungsplan` : ""}${rahmen ? " und dem, was die Nachbarn gebaut haben" : ""}, ${bei}. Baugrenzen, Bauweise und weitere Festsetzungen prüft die Seite nicht.`
-        : `„Höchstens“ heißt: so viel, wie die Abstände zur Grenze hergeben, ${bei}. Der Bebauungsplan erlaubt oft weniger. Tragen Sie seine Werte ein, dann rechnet die Seite damit.`}</p>`
+        : `„Höchstens“ heißt: so viel, wie die Abstände zur Grenze hergeben, ${bei}. Der Bebauungsplan erlaubt oft weniger. Tragen Sie seine Werte ein, dann rechnet die Seite damit.`}</p>`)
       + `<div class="plan"><span class="label">Aus dem Bebauungsplan${plaene.length ? ` ${esc(plaene.join(", "))}` : ""}${planlink ? ` · ${planlink}` : ""}</span>`
       + `<div class="nachfrage drei">${feld("geschosse", "Vollgeschosse", 1, "Zahl der Vollgeschosse, im Plan oft als römische Zahl")}${feld("grz", "GRZ", 0.05, "Grundflächenzahl, zum Beispiel 0,4")}${feld("gfz", "GFZ", 0.05, "Geschossflächenzahl, zum Beispiel 0,8")}</div>`
       + `<p class="klein">Die drei Werte stehen in der Nutzungsschablone des Plans. Leer lassen, was der Plan nicht festsetzt.</p></div>`
@@ -1603,7 +1792,7 @@ function zeichneBlatt() {
           + `${spanne("Abstand zur Straße", U.vorn, "m", zehntel, "Von der Straßengrenze bis zur nächsten Hausecke")}${spanne("Tiefe ab Straße", U.tiefe, "m", zehntel, "Von der Straßengrenze bis zur hintersten Hausecke")}`
           + (U.hoehe ? spanne("Höhe", U.hoehe, "m", zehntel, "Bis zum höchsten Punkt des Dachs, aus dem 3D-Gebäudemodell des Landes") : `<div><span class="label">Höhe</span>${hoehenStand === "laedt" ? `<span class="klein">lädt …</span>` : a.umgebung.hoehen ? `<span class="klein">nicht im 3D-Modell</span>` : `<button type="button" class="link" data-hoehen title="Aus dem 3D-Gebäudemodell des Landes NRW; je Quadratkilometer eine Datei von rund 15 MB">Höhen holen</button>`}</div>`) + `</div>`
           + (hoehenStand && hoehenStand !== "laedt" ? `<p class="klein">${esc(hoehenStand)}</p>` : "")
-          + `<label class="haken"><input type="checkbox" data-p="umgebung.messen"${a.umgebung.messen ? " checked" : ""}>„Was passt“ an der Umgebung messen</label>` : "")
+          + (pruefen ? "" : `<label class="haken"><input type="checkbox" data-p="umgebung.messen"${a.umgebung.messen ? " checked" : ""}>„Was passt“ an der Umgebung messen</label>`) : "")
         + `<p class="klein">Gemessen im Kataster, ohne Garagen und Nebengebäude. Gezählt sind bebaute Wohngrundstücke bis 20 m um Ihres; ihre Häuser sind im Plan dunkler.`
           + (U.grosse.length ? ` ${U.grosse.length === 1 ? "Ein deutlich größeres Haus" : `${U.grosse.length} deutlich größere Häuser`} (${U.grosse.map((i) => `${U.nachbarn[i].grundflaeche} m²`).join(", ")}) ${U.grosse.length === 1 ? "zählt" : "zählen"} zunächst nicht mit.` : "")
           + ` Ein Klick auf ein Grundstück im Plan nimmt es heraus oder dazu. Ob sich ein Haus einfügt, beurteilt das Bauamt.</p></div>` : ""));
