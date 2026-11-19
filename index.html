@@ -229,7 +229,8 @@ body.ziel::after { content: "DXF-Datei hier ablegen"; position: fixed; inset: 12
 .punkt[data-s=nicht] > i { background: none; box-shadow: inset 0 0 0 1.5px var(--blei); }
 .punkt h3 { font: 600 13px/1.3 var(--text); margin: 0; } .punkt p { margin: 1px 0 0; font-size: 12px; color: var(--blei); } .punkt h3, .punkt p { overflow-wrap: anywhere; }
 .punkt .folge { color: var(--tusche); } .punkt .knoepfe { margin-top: 7px; }
-.punkt .ist { display: flex; flex-direction: row; align-items: center; gap: 8px; margin-top: 6px; } .punkt .ist input { width: 84px; }
+.ist { display: flex; flex-direction: row; align-items: center; gap: 8px; margin-top: 6px; } .ist input { width: 84px; } .ist input[type=date] { width: auto; }
+.zeile .folge { color: var(--tusche); } .zeile .folge[data-knapp] { color: var(--fehl); font-weight: 600; } .zeile .knoepfe { margin-top: 7px; }
 dialog { max-width: min(92vw, 560px); border: 1px solid var(--raster); border-radius: 12px; padding: 20px 22px; background: var(--papier); color: var(--tusche); box-shadow: var(--schatten); }
 dialog::backdrop { background: rgba(0, 0, 0, .4); }
 dialog h2 { border: 0; padding: 0; margin: 14px 0 4px; } dialog h2:first-child { margin-top: 0; } dialog p { margin: 0 0 8px; font-size: 13px; color: var(--blei); }
@@ -1107,9 +1108,25 @@ function vorAbsenden(a, dateien = []) { // Punkte mit status "fehl", "offen" (An
   return punkte;
 }
 
+// Nach dem Absenden: die Frist aus dem Schreiben des Bauamts, als Stand in Tagen und als Kalendereintrag
+const TAG = /^\d{4}-\d{2}-\d{2}$/, deTag = (s) => s.split("-").reverse().join(".");
+function fristStand(frist, heute) { // beide "JJJJ-MM-TT"; null, wenn die Frist fehlt oder unlesbar ist
+  if (!TAG.test(frist || "") || isNaN(Date.parse(frist))) return null;
+  const tage = Math.round((Date.parse(frist) - Date.parse(heute)) / 864e5);
+  return { tage, knapp: tage <= 7, text: tage > 1 ? `Noch ${tage} Tage, bis zum ${deTag(frist)}.` : tage === 1 ? `Die Frist läuft morgen ab, am ${deTag(frist)}.` : tage === 0 ? "Die Frist läuft heute ab."
+    : tage === -1 ? "Die Frist ist seit gestern abgelaufen." : `Die Frist ist seit ${-tage} Tagen abgelaufen.` };
+}
+function fristKalender(frist, ort, stempel) { // ganztägiger Termin am Tag der Frist, Erinnerung eine Woche und einen Tag vorher; stempel: Zeitpunkt des Anlegens wie "20261119T101500Z"
+  const kurz = (s) => s.replace(/-/g, ""), danach = new Date(Date.parse(frist) + 864e5).toISOString().slice(0, 10), text = (s) => s.replace(/[\\,;]/g, (c) => "\\" + c);
+  const titel = text(`Frist Bauamt: Nachforderung${ort ? ` ${ort}` : ""}`), wecker = (vor) => ["BEGIN:VALARM", "ACTION:DISPLAY", `DESCRIPTION:${titel}`, `TRIGGER:-${vor}`, "END:VALARM"];
+  return ["BEGIN:VCALENDAR", "VERSION:2.0", "PRODID:-//Planungscheck//DE", "BEGIN:VEVENT", `UID:planungscheck-${frist}-${stempel}`, `DTSTAMP:${stempel}`, `DTSTART;VALUE=DATE:${kurz(frist)}`, `DTEND;VALUE=DATE:${kurz(danach)}`,
+    `SUMMARY:${titel}`, `DESCRIPTION:${text("Bis zu diesem Tag müssen die Mängel behoben sein. Sonst gilt der Bauantrag als zurückgenommen. Eine Verlängerung vor Ablauf beantragen.")}`,
+    ...wecker("P7D"), ...wecker("P1D"), "END:VEVENT", "END:VCALENDAR", ""].join("\r\n");
+}
+
 if (typeof module !== "undefined") {
   module.exports = { linkSchreibe, linkLies, adressTeile, adressTreffer, dxfSchreibe, de, stellplaetzeKfz, fahrradabstellplaetze, spielplatz, geschuetzt, abstandsflaeche, spielraum, feuerwehr,
-    flaeche, innen, liegtAuf, mitStrassen, freiraum, dxfText, dxfPolygone, lage, loesung, katasterUrl, katasterLies, strassenVorschlag, bplanUrl, bplanTreffer, starthaus, potenzial, umgebung, hoehenUrl, hoehenLies, unterlage, UNTERLAGEN, planWerte, vorAbsenden };
+    flaeche, innen, liegtAuf, mitStrassen, freiraum, dxfText, dxfPolygone, lage, loesung, katasterUrl, katasterLies, strassenVorschlag, bplanUrl, bplanTreffer, starthaus, potenzial, umgebung, hoehenUrl, hoehenLies, unterlage, UNTERLAGEN, planWerte, vorAbsenden, fristStand, fristKalender };
 }
 </script>
 
@@ -1122,7 +1139,7 @@ const LEER = { vorhaben: null, planungsrecht: null, gebaeudeklasse: null, oberir
   wandhoehe: null, neigung: null, dachhoehe: null, grundstueck: [], haus: [],
   kataster: { gemarkung: "Münster", flur: null, nummer: null, kennzeichen: null, lage: null, stand: null }, umgebung: { flurstuecke: [], gebaeude: [] },
   bplan: null, // nach einem Abruf in Münster: { kraft: [...], verfahren: [...] }
-  annahmen: { ...ANNAHMEN }, festsetzung: { geschosse: null, grz: null, gfz: null }, nord: false, ursprung: null, baufenster: [],
+  annahmen: { ...ANNAHMEN }, festsetzung: { geschosse: null, grz: null, gfz: null }, nord: false, ursprung: null, baufenster: [], frist: null, // frist: aus dem Schreiben des Bauamts, "JJJJ-MM-TT"
   ziel: null, baulast: false, antrag: { stellplaetze: null, raeder: null, spielflaeche: null }, paket: [] }; // ziel "pruefen": vor dem Absenden; antrag: Zahlen aus dem eigenen Lageplan; paket: [{ name, groesse, schutz }]; ursprung: Ecke im Netz des Katasters, für die DXF-Ausgabe
 const BEISPIEL = { ...LEER, vorhaben: "errichtung", planungsrecht: "34", gebaeudeklasse: 4, oberirdische_geschosse: 4,
   baugebiet: "allgemein", zweiter_rettungsweg: "feuerwehr", bruestung_anleiterstelle: 10.5, entfernung_verkehrsflaeche: 25, oepnv: "bus_10",
@@ -1187,6 +1204,7 @@ function eingabe(e) {
   zeichneBlatt();
 }
 $("angaben").addEventListener("input", eingabe);
+$("blatt").addEventListener("focusout", (e) => { if (e.target.id === "frist" && (e.target.value || null) !== a.frist) { a.frist = e.target.value || null; zeichneBlatt(); } }); // erst beim Verlassen: Ein Datumsfeld meldet sich beim Tippen mit halben Daten
 $("blatt").addEventListener("change", (e) => { if (e.target.dataset.p) { eingabe(e); fuelleFormular(); } }); // Nachfragen im Ergebnis: erst beim Verlassen des Felds
 $("angaben").addEventListener("click", (e) => {
   const d = e.target.dataset;
@@ -1507,6 +1525,9 @@ $("blatt").addEventListener("click", (e) => {
   if (e.target.hasAttribute("data-paket")) $("pdfs").click();
   if (e.target.hasAttribute("data-paketleer")) { a.paket = []; neu(); }
   if (e.target.hasAttribute("data-baugrenzeweg")) { a.baufenster = []; neu(); }
+  if (e.target.hasAttribute("data-kalender")) { const link = document.createElement("a"); // Termin als Kalenderdatei, entsteht auf diesem Gerät
+    link.href = URL.createObjectURL(new Blob([fristKalender(a.frist, a.kataster.lage, new Date().toISOString().replace(/[-:]|\.\d+/g, ""))], { type: "text/calendar" }));
+    link.download = "frist-bauamt.ics"; link.click(); setTimeout(() => URL.revokeObjectURL(link.href), 1000); }
   if (e.target.dataset.gruppe) { angabenAuf(true); const g = $("angaben").querySelectorAll("details.gruppe")[e.target.dataset.gruppe]; g.open = true; g.scrollIntoView({ block: "start" }); }
   const d = e.target.hasAttribute("data-einpassen") && loesung(a);
   if (d) { // das Haus gleitet an den gefundenen Standort
@@ -1721,13 +1742,14 @@ $("zurueck").addEventListener("click", zurueck);
 addEventListener("keydown", (e) => { if ((e.metaKey || e.ctrlKey) && e.key === "z" && !e.shiftKey && !/^(INPUT|SELECT|TEXTAREA)$/.test(e.target.tagName)) { e.preventDefault(); zurueck(); } });
 for (const id of ["dxfG", "dxfH", "dxfB"]) $(id).addEventListener("change", () => dxfSetze(Number($("dxfG").value), Number($("dxfH").value), Number($("dxfB").value)));
 
-const zeile = (soll, einheit, titel, text, quelle) => `<div class="zeile">`
+const zeile = (soll, einheit, titel, text, quelle, mehr = "") => `<div class="zeile">`
   + (einheit === null ? `<div class="label">${soll}</div>` : `<div class="soll">${soll}<small>${einheit}</small></div>`)
-  + `<div><h3>${titel}</h3><p>${text}</p>${quelle ? `<p class="quelle">${quelle}</p>` : ""}</div></div>`;
+  + `<div><h3>${titel}</h3><p>${text}</p>${mehr}${quelle ? `<p class="quelle">${quelle}</p>` : ""}</div></div>`;
+const heute = () => { const d = new Date(), zwei = (n) => String(n).padStart(2, "0"); return `${d.getFullYear()}-${zwei(d.getMonth() + 1)}-${zwei(d.getDate())}`; };
 const abschnitt = (titel, zeilen) => zeilen.length ? `<section><h2>${titel}</h2>${zeilen.join("")}</section>` : "";
 
 function zeichneBlatt() {
-  const fehlt = [], soll = [], paket = [], frueh = [];
+  const fehlt = [], soll = [], paket = [], frueh = [], danach = [];
 
   const L = lage(a);
   $("lage").hidden = !L || !L.h.length; // ohne Haus gibt es noch nichts zu beurteilen
@@ -1742,7 +1764,7 @@ function zeichneBlatt() {
   [...$("weg").querySelectorAll("li")].forEach((li, i) => { li.className = i < stelle ? "fertig" : i === stelle ? "jetzt" : ""; li.textContent = (pruefen ? ["Grundstück", "Ihr Entwurf", "Zahlen und Paket", "Absenden"] : ["Grundstück", "Was passt", "Ihr Haus", "Mitnehmen"])[i]; });
   $("wegtext").textContent = !L ? "" : pruefen ? ["", !L.h.length ? "Laden Sie Ihren Lageplan als DXF oder setzen Sie das Haus von Hand. Danach geht die Seite Punkt für Punkt durch."
       : "Am Entwurf ist noch etwas offen. Die Liste sagt, was und was daraus folgt.", "Der Entwurf steht. Jetzt die Zahlen aus Ihrem Lageplan und das Paket fürs Bauportal.",
-      "Soweit die Seite prüft, passt alles. Was Sie selbst prüfen und was die Seite nicht prüft, steht in der Liste. „PDF“ gibt sie für die Akte."][stelle]
+      "Soweit die Seite prüft, passt alles. Was Sie selbst prüfen und was die Seite nicht prüft, steht in der Liste. „PDF“ gibt sie für die Akte. Ganz unten steht, worauf es beim Absenden und danach ankommt."][stelle]
     : stelle === 1 ? "Wählen Sie unten eine Geschosszahl. Der Plan zeigt das größte Haus, das dann noch die Abstände zur Grenze einhält. Mit „Dieses Haus in den Plan“ arbeiten Sie damit weiter."
     : stelle === 3 ? (ueberPlan ? "Das Haus hält die Abstände ein, liegt aber über den Werten aus dem Bebauungsplan. Unten steht, wo." : "Das Haus hält die Abstände ein. „DXF“ nimmt Grundstück, Umgebung und Abstandsflächen mit in Ihr CAD, „PDF“ gibt das Blatt für die Akte.") + " Steht der Entwurf, prüft „Vor dem Absenden“ ihn zusammen mit Ihrem Paket."
     : L.fehlt.length ? "Für das Urteil fehlen noch Angaben. Tragen Sie sie unten ein, die Seite rechnet sofort."
@@ -1861,7 +1883,20 @@ function zeichneBlatt() {
     if (!a.bplan.kraft.length) frueh.push(zeile("B-Plan", null, "Kein rechtskräftiger Bebauungsplan gefunden", "Der Dienst der Stadt zeigt für dieses Flurstück keinen. Verbindlich ist nur die Auskunft der Stadt.", quelle));
   }
   if (a.mischnutzung) frueh.push(zeile("Mischnutzung", null, "Anlieferung und Schallschutz", "Im Plan prüfen: Anlieferzone und Schallschutz zu den Wohnungen sind dargestellt.", "Gespräch mit einem Münsteraner Büro, November 2026, nicht bestätigt"));
-  frueh.push(zeile("Bauportal", null, "Haken zum Brandschutz setzen", "Er lässt sich nach dem Absenden nicht mehr ändern. Bitte vor dem Absenden im Portal kontrollieren.", "Gespräch mit einem Münsteraner Büro, November 2026, nicht bestätigt"));
+  if (pruefen) { // der letzte Schritt: was beim Absenden zählt und die Frist, wenn das Bauamt nachfordert
+    danach.push(zeile("Bauportal", null, "Nur über das Bauportal NRW einreichen", "Das Bauordnungsamt Münster nimmt seit dem 5. September 2026 keine Papieranträge mehr an, nur noch Anträge über das Bauportal.", "Stadt Münster, „Neue Regeln für Bauanträge“"));
+  }
+  (pruefen ? danach : frueh).push(zeile("Bauportal", null, "Haken zum Brandschutz setzen", "Er lässt sich nach dem Absenden nicht mehr ändern. Bitte vor dem Absenden im Portal kontrollieren.", "Gespräch mit einem Münsteraner Büro, November 2026, nicht bestätigt"));
+  if (pruefen) {
+    const stand = fristStand(a.frist, heute());
+    danach.push(zeile("Fiktion", null, "Genehmigung durch Fristablauf", "Entscheidet das Bauamt nach vollständigem Antrag nicht in der Frist, gilt die Genehmigung als erteilt. Die Bauherrschaft kann vorher in Textform darauf verzichten, etwa wenn die Bank einen Bescheid verlangt. "
+      + "Münster kündigt an: Bleibt keine Zeit, die Planung nachzubessern, lehnt das Amt förmlich ab, wenn nicht verzichtet wurde. Bitte mit der Bauherrschaft klären.", "Bauordnung NRW, Genehmigungsfiktion; Stadt Münster, Informationsblatt zur Genehmigungsfiktion, Fassung vom 28.10.2026"));
+    danach.push(zeile("Frist", null, "Wenn das Bauamt nachfordert", "Das Amt setzt eine Frist. Sind die Mängel bis dahin nicht behoben, gilt der Antrag als zurückgenommen, und Sie reichen neu ein. Tragen Sie die Frist aus dem Schreiben ein: "
+      + "Die Seite zählt die Tage und gibt Ihnen den Termin für den Kalender, mit Erinnerung eine Woche und einen Tag vorher. Reicht die Zeit nicht, beantragen Sie die Verlängerung vor Ablauf.",
+      "Bauordnung NRW, Behandlung des Bauantrags. Zur Verlängerung: Infobrief des Kreises Warendorf, Februar 2022; für Münster nicht belegt.",
+      `<label class="ist">Frist aus dem Schreiben<input type="date" id="frist" value="${esc(a.frist || "")}"></label>`
+      + (stand ? `<p class="folge"${stand.knapp ? " data-knapp" : ""}>${stand.text}</p><div class="knoepfe"><button type="button" data-kalender>In den Kalender</button></div>` : "")));
+  }
 
   const we = anzahlWohnungen(wohnungen), kopf = (l, w) => `<div><span class="label">${l}</span><span class="wert">${w}</span></div>`;
   $("plankopf").innerHTML = kopf("Vorhaben", { errichtung: "Neubau", aenderung: "Änderung, Umbau" }[a.vorhaben] || "offen")
@@ -1869,7 +1904,7 @@ function zeichneBlatt() {
     + kopf("Stand", `<span class="zahl">${new Date().toLocaleDateString("de-DE", { day: "2-digit", month: "2-digit", year: "numeric" })}</span>`);
 
   $("rest").innerHTML = (!L || !L.h.length ? "" : abschnitt("Nachweis je Wand", abstaende) // ohne Haus nur der Fuß
-    + abschnitt("Soll-Zahlen · gegen Ihren Plan halten", soll) + abschnitt("Gehört ins Paket", paket) + abschnitt("Früh klären", frueh)
+    + abschnitt("Soll-Zahlen · gegen Ihren Plan halten", soll) + abschnitt("Gehört ins Paket", paket) + abschnitt("Früh klären", frueh) + abschnitt("Beim Absenden und danach", danach)
     + (fehlt.length ? `<section><h2>Noch offen</h2><p class="klein">Für diese Punkte fehlen Angaben: ${fehlt.join("; ")}.</p></section>` : ""))
     + `<footer class="fuss"><p>Jede Zahl folgt einer Regel aus der Bauordnung NRW oder einer Münsteraner Satzung; kein Sprachmodell entscheidet. Die Seite rechnet auf Ihrem Gerät. Stand der Bauordnung NRW: Fassung ab 01.09.2026.</p>`
     + `<p>Entwurf, nicht abgenommen. Ersetzt weder Ihre Planung noch die Prüfung durch das Bauamt.</p>`
