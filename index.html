@@ -324,6 +324,8 @@ dialog h2 { border: 0; padding: 0; margin: 14px 0 4px; } dialog h2:first-child {
       </div>
     </div></details>
     <details class="gruppe" name="gruppe"><summary><span class="nr">5</span>Flächen außer dem Haus</summary><div class="inhalt">
+      <div id="anlagen"></div>
+      <p class="klein">Aus dem Lageplan im CAD (DXF) misst die Seite diese Flächen selbst. Layer mit Garage, Carport, Stellplatz, Zufahrt, Terrasse, Weg oder Tiefgarage im Namen erkennt sie; alle anderen ordnen Sie hier zu. Was gezeichnet ist, geht den Zahlen darunter vor.</p>
       <div class="paar">
         <label>Stellplätze mit Zufahrten (m²)<input type="number" min="0" step="1" data-p="flaechen.stellplaetze"></label>
         <label>Garagen, Nebenanlagen, Fahrradplätze (m²)<input type="number" min="0" step="1" data-p="flaechen.neben"></label>
@@ -810,7 +812,8 @@ function lage(a, d = [0, 0]) {
   // die Wandhöhe reicht vom Gelände bis zum oberen Abschluss dieser Wand (BauO NRW § 6 Abs. 1 S. 1, Abs. 4 S. 1 und 2).
   const hs = a.staffelhoehe > 0 ? a.staffelhoehe : 0, zur = H.map((q) => (hs && q.zurueck > 0 ? q.zurueck : 0)), oben = hs && hausDa ? versetzt(h, zur) : [];
   const fehlt = [[!hausDa, "Haus"], [!istZahl(a.wandhoehe), "Wandhöhe"], [a.gebaeudeklasse == null, "Gebäudeklasse"], [a.oberirdische_geschosse == null, "Geschosse"], [!a.baugebiet, "Baugebiet"], [oben === null, "Staffelgeschoss"]].filter((x) => x[0]).map((x) => x[1]);
-  if (fehlt.length) return { g, h, b, oben: oben || [], rand, strassen, waende: [], auf: !hausDa || liegtAuf(h, g), fehlt }; // Plan ja, Urteil noch nicht
+  const anlagen = (a.anlagen || []).map((x, i) => ({ nr: i + 1, art: x.art, name: x.name, hoehe: x.hoehe, v: punkte(x.punkte || []) })).filter((x) => x.v.length >= 3); // was außer dem Haus gezeichnet ist
+  if (fehlt.length) return { g, h, b, oben: oben || [], anlagen, rand, strassen, waende: [], auf: !hausDa || liegtAuf(h, g), fehlt }; // Plan ja, Urteil noch nicht
   const waende = H.map((q, i) => {
     const p = h[i], e = h[(i + 1) % h.length], l = lang(p, e), u = [(e[0] - p[0]) / l, (e[1] - p[1]) / l], n = [f * u[1], -f * u[0]];
     const vor = (s, t) => [p[0] + u[0] * s + n[0] * t, p[1] + u[1] * s + n[1] * t]; // Punkt vor der Wand: s entlang, t nach außen
@@ -830,7 +833,7 @@ function lage(a, d = [0, 0]) {
     const teile = [{ sp, plus: hs && !s ? hs : 0 }, ...(ob ? [{ sp: ob.sp, plus: hs }] : [])]; // plus: was dieser Wandteil über der eingetragenen Wandhöhe liegt
     return { nr: i + 1, p, e, l, n, vor, l0, l1, w, r, sp, frei, ok: unten && (!ob || ob.ok), luft: ob ? Math.min(luft, ob.luft) : luft, unten: { ok: unten, luft }, oben: ob, teile };
   });
-  return { g, h, b, oben, rand, strassen, waende, auf: liegtAuf(h, g), fehlt: [] };
+  return { g, h, b, oben, anlagen, rand, strassen, waende, auf: liegtAuf(h, g), fehlt: [] };
 }
 
 function loesung(a) { // kleinste gefundene Verschiebung, mit der alle Wände passen: immer die schlechteste Wand von der Grenze wegrücken
@@ -860,8 +863,9 @@ function loesung(a) { // kleinste gefundene Verschiebung, mit der alle Wände pa
 function dxfSchreibe(L, ursprung = [0, 0], umgebung = { flurstuecke: [], gebaeude: [] }) { // Grundstück, Umgebung, Haus und Abstandsflächen als DXF (R12, Meter); ursprung schiebt zurück ins Netz des Katasters
   const z = (v) => (Math.round(v * 1000) / 1000).toFixed(3), xy = ([x, y], n = 0) => `${10 + n}\n${z(x + ursprung[0])}\n${20 + n}\n${z(y + ursprung[1])}\n`;
   const zug = (ebene, v) => `0\nPOLYLINE\n8\n${ebene}\n66\n1\n70\n1\n` + v.map((q) => `0\nVERTEX\n8\n${ebene}\n${xy(q)}`).join("") + `0\nSEQEND\n8\n${ebene}\n`;
-  const EBENEN = { PC_GRUNDSTUECK: 7, PC_GEBAEUDE: 7, PC_VORBAU: 7, PC_STAFFELGESCHOSS: 7, PC_BAUGRENZE: 5, PC_ABSTANDSFLAECHE: 5, PC_STRASSENMITTE: 8, PC_TEXT: 5, PC_NACHBAR_FLURSTUECKE: 8, PC_NACHBAR_GEBAEUDE: 8 }; // Name: Farbnummer
+  const EBENEN = { PC_GRUNDSTUECK: 7, PC_GEBAEUDE: 7, PC_VORBAU: 7, PC_STAFFELGESCHOSS: 7, PC_BAUGRENZE: 5, PC_GARAGE: 7, PC_STELLPLATZ: 8, PC_NEBENANLAGE: 8, PC_TIEFGARAGE: 8, PC_ABSTANDSFLAECHE: 5, PC_STRASSENMITTE: 8, PC_TEXT: 5, PC_NACHBAR_FLURSTUECKE: 8, PC_NACHBAR_GEBAEUDE: 8 }; // Name: Farbnummer
   let t = zug("PC_GRUNDSTUECK", L.g) + (L.h.length ? zug("PC_GEBAEUDE", L.h) : "") + (L.oben.length ? zug("PC_STAFFELGESCHOSS", L.oben) : "") + (L.b.length ? zug("PC_BAUGRENZE", L.b) : "")
+    + L.anlagen.filter((t) => EBENE[t.art]).map((t) => zug(EBENE[t.art], t.v)).join("")
     + umgebung.flurstuecke.map((v) => zug("PC_NACHBAR_FLURSTUECKE", v)).join("") + umgebung.gebaeude.map((v) => zug("PC_NACHBAR_GEBAEUDE", v)).join("");
   for (const s of L.strassen) { const m = (q) => [q[0] + s.n[0] * s.w / 2, q[1] + s.n[1] * s.w / 2];
     t += `0\nLINE\n8\nPC_STRASSENMITTE\n${xy(m(s.a))}${xy(m(s.b), 1)}`; }
@@ -1112,9 +1116,66 @@ function staffelStand(L) { // Vollgeschoss ist ein Geschoss nur mit mehr als dre
   const flaecheOben = Math.abs(flaeche(L.oben)), anteil = flaecheOben / Math.abs(flaeche(L.h)), voll = anteil > 0.75;
   return { anteil, voll, flaeche: flaecheOben, text: `Das Staffelgeschoss hat ${de(Math.round(anteil * 1000) / 10).slice(0, -1)} % der Fläche des Geschosses darunter und zählt ${voll ? "" : "nicht "}als Vollgeschoss; die Grenze liegt bei mehr als drei Vierteln.` };
 }
-function nebenflaechen(a) { // was außer dem Haus bei der GRZ mitzählt: vom Büro eingetragen, sonst aus Stellplätzen und Fahrradplätzen geschätzt; null, wenn beides fehlt
-  const fl = a.flaechen || {}, da = [fl.stellplaetze, fl.neben, fl.unter].filter((x) => x != null);
-  if (da.length) return { summe: da.reduce((s, x) => s + x, 0), geschaetzt: false };
+// Was außer dem Haus auf dem Grundstück gezeichnet ist: a.anlagen = [{ name, art, hoehe, punkte }]; art null zählt nicht. Reihenfolge der Arten: Wo sich zwei überdecken, zählt die frühere.
+const ANLAGE = { garage: "Garage oder Carport", stellplatz: "Stellplätze und Zufahrten", neben: "Terrassen und Nebenanlagen", unter: "Tiefgarage" };
+const TOPF = { garage: "neben", stellplatz: "stellplaetze", neben: "neben", unter: "unter" }, EBENE = { garage: "PC_GARAGE", stellplatz: "PC_STELLPLATZ", neben: "PC_NEBENANLAGE", unter: "PC_TIEFGARAGE" };
+function anlageArt(layer) { // Layername aus dem CAD -> Art der Fläche oder null; die eigenen Layer der Seite genau
+  if (/^PC_/i.test(layer)) return Object.keys(EBENE).find((k) => EBENE[k] === layer.toUpperCase()) || null;
+  return /tiefgarage|(^|[^a-z])tg([^a-z]|$)|unterbau/i.test(layer) ? "unter" : /garage|carport|nebengeb|schuppen|gartenhaus/i.test(layer) ? "garage"
+    : /stellpl|parkpl|zufahrt|einfahrt|(^|[^a-z])stp([^a-z]|$)/i.test(layer) ? "stellplatz" : /terrasse|weg|pflaster|befestig|nebenanlage|fahrrad|m(ü|ue)ll/i.test(layer) ? "neben" : null;
+}
+const kasten = (v) => [Math.min(...v.map((p) => p[0])), Math.min(...v.map((p) => p[1])), Math.max(...v.map((p) => p[0])), Math.max(...v.map((p) => p[1]))];
+const liegtDrauf = (v, g) => [...v, ...nachbarn(v).map(([p, q]) => [(p[0] + q[0]) / 2, (p[1] + q[1]) / 2])].every((p) => innen(p, g) || nachbarn(g).some(([c, d]) => abstandStrecke(p, c, d) < 0.02)); // wie liegtAuf, aber eine Wand genau auf der Grenze zählt als darauf (2 cm)
+function nachbargrenzen(a, L) { // Kanten ohne Straße, je { p, q, u, l, n (nach innen), gruppe }; aufeinanderfolgende, die um weniger als 30 Grad abknicken, sind eine Grenze
+  const g = L.g, fg = flaeche(g) > 0 ? 1 : -1, k = g.map((p, i) => { const q = g[(i + 1) % g.length], l = lang(p, q), u = [(q[0] - p[0]) / l, (q[1] - p[1]) / l];
+    return { p, q, u, l, n: [-fg * u[1], fg * u[0]], strasse: a.grundstueck[i].strasse > 0 }; });
+  const glatt = (x, y) => !x.strasse && !y.strasse && x.u[0] * y.u[0] + x.u[1] * y.u[1] > Math.cos(Math.PI / 6);
+  let nr = 0; k.forEach((e, i) => { e.gruppe = i && glatt(k[i - 1], e) ? k[i - 1].gruppe : nr++; });
+  if (k.length > 2 && glatt(k[k.length - 1], k[0])) { const alt = k[k.length - 1].gruppe; k.forEach((e) => { if (e.gruppe === alt) e.gruppe = k[0].gruppe; }); }
+  return k.filter((e) => !e.strasse);
+}
+function anGrenze(v, e) { // Länge der Wände von v, die der Kante e zugewandt sind und näher als 3 m an ihr stehen
+  const f = flaeche(v) > 0 ? 1 : -1; let summe = 0;
+  for (const [p, q] of nachbarn(v)) {
+    const l = lang(p, q), st = (r) => [(r[0] - e.p[0]) * e.u[0] + (r[1] - e.p[1]) * e.u[1], (r[0] - e.p[0]) * e.n[0] + (r[1] - e.p[1]) * e.n[1]], [s0, t0] = st(p), [s1, t1] = st(q);
+    if (f * (q[1] - p[1]) / l * -e.n[0] - f * (q[0] - p[0]) / l * -e.n[1] < 0.7) continue; // die Wand schaut nicht zur Grenze
+    let von = 0, bis = 1; // Anteil der Wand im Streifen vor der Kante: 0 bis e.l entlang, weniger als 3 m davor
+    for (const [x0, x1, lo, hi] of [[s0, s1, 0, e.l], [t0, t1, -0.01, 2.995]]) {
+      if (Math.abs(x1 - x0) < 1e-9) { if (x0 < lo || x0 > hi) bis = -1; continue; }
+      const c = (lo - x0) / (x1 - x0), d = (hi - x0) / (x1 - x0); von = Math.max(von, Math.min(c, d)); bis = Math.min(bis, Math.max(c, d));
+    }
+    if (bis > von) summe += (bis - von) * l;
+  }
+  return summe;
+}
+function anlagenStand(a, L = lage(a)) { // null: nichts Zählbares gezeichnet. teile: gezählte Fläche je Stück; summe: je Feld von a.flaechen; garagen: Länge an den Nachbargrenzen und Höhe (BauO NRW § 6 Abs. 8)
+  const rang = Object.keys(ANLAGE), alle = L ? L.anlagen.filter((t) => ANLAGE[t.art]).sort((x, y) => rang.indexOf(x.art) - rang.indexOf(y.art)) : [];
+  if (!alle.length) return null;
+  const C = 0.05, davor = L.h.length >= 3 ? [L.h] : [], summe = {}, arten = {}; let doppelt = false;
+  const teile = alle.map((t) => { // abgezogen wird im Raster von 5 cm, was vor der Grundstücksgrenze, unter dem Haus oder unter einer früheren Fläche liegt
+    const k = kasten(t.v), ganz = rund(Math.abs(flaeche(t.v))), draussen = !liegtDrauf(t.v, L.g), nah = davor.filter((w) => { const o = kasten(w); return o[0] < k[2] && k[0] < o[2] && o[1] < k[3] && k[1] < o[3]; });
+    let ab = 0;
+    if (draussen || nah.length) for (let x = k[0] + C / 2; x < k[2]; x += C) for (let y = k[1] + C / 2; y < k[3]; y += C) if (innen([x, y], t.v) && ((draussen && !innen([x, y], L.g)) || nah.some((w) => innen([x, y], w)))) ab++;
+    davor.push(t.v); doppelt = doppelt || ab > 0;
+    const zaehlt = Math.max(0, Math.round((ganz - ab * C * C) * 100) / 100);
+    summe[TOPF[t.art]] = (summe[TOPF[t.art]] || 0) + zaehlt; arten[t.art] = (arten[t.art] || 0) + zaehlt;
+    return { ...t, flaeche: zaehlt, ganz, draussen };
+  });
+  const G = teile.filter((t) => t.art === "garage"), kanten = nachbargrenzen(a, L), je = {};
+  for (const t of G) {
+    t.nah = kanten.some((e) => t.v.some((p) => abstandStrecke(p, e.p, e.q) < 2.995) || nachbarn(t.v).some(([p, q]) => abstandStrecke(e.p, p, q) < 2.995));
+    for (const e of kanten) je[e.gruppe] = (je[e.gruppe] || 0) + anGrenze(t.v, e);
+  }
+  const laengen = Object.values(je).filter((x) => x > 0.01).map((x) => Math.round(x * 100) / 100).sort((x, y) => y - x), nrs = (liste) => liste.map((t) => t.nr);
+  return { teile, summe, arten, doppelt, garagen: !G.length ? null : { anzahl: G.length, laengen, gesamt: Math.round(laengen.reduce((s, x) => s + x, 0) * 100) / 100, nah: nrs(G.filter((t) => t.nah)),
+    draussen: nrs(G.filter((t) => t.draussen)), ohne: nrs(G.filter((t) => !(t.hoehe > 0))), hoch: nrs(G.filter((t) => t.hoehe > 3.0005)), hoechste: Math.max(0, ...G.map((t) => t.hoehe || 0)),
+    vorBaugrenze: L.b.length ? nrs(G.filter((t) => !liegtDrauf(t.v, L.b))) : [] } };
+}
+function nebenflaechen(a, L = lage(a)) { // was außer dem Haus bei der GRZ mitzählt: aus der Zeichnung gemessen, sonst vom Büro eingetragen, sonst aus Stellplätzen und Fahrradplätzen geschätzt; null, wenn alles fehlt
+  const st = L ? anlagenStand(a, L) : null, fl = a.flaechen || {}, da = ["stellplaetze", "neben", "unter"].map((k) => (st && st.summe[k] != null ? st.summe[k] : fl[k])).filter((x) => x != null);
+  if (da.length) return { summe: da.reduce((s, x) => s + x, 0), geschaetzt: false,
+    aus: !st ? "" : `Aus Ihrer Zeichnung gezählt: ${Object.keys(ANLAGE).filter((k) => st.arten[k] != null).map((k) => `${ANLAGE[k]} ${Math.round(st.arten[k])} m²`).join(", ")}.`
+      + (st.doppelt ? " Was über die Grundstücksgrenze ragt, unter dem Haus oder unter einer anderen Fläche liegt, zählt dabei nicht doppelt." : "") };
   const wohnungen = (a.wohnungen || []).filter((w) => Number.isInteger(w.anzahl) && w.anzahl > 0 && istZahl(w.wohnflaeche));
   if (!wohnungen.length || !a.oepnv) return null;
   const kfz = stellplaetzeKfz(wohnungen, a.oepnv).mit_abschlag, raeder = fahrradabstellplaetze(wohnungen) || 0, stellplatz = (a.annahmen || {}).stellplatz > 0 ? a.annahmen.stellplatz : ANNAHMEN.stellplatz;
@@ -1126,10 +1187,10 @@ function planWerte(a, L) { // das Haus gegen Vollgeschosse, GRZ und GFZ aus dem 
   const werte = [[kein ? "Vollgeschosse" : "Geschosse", n == null ? null : n - (kein ? 1 : 0), fs.geschosse, String], ["GRZ", fh / fg, fs.grz, de], ["GFZ", gf === null ? null : gf / fg, fs.gfz, de]].filter(([, ist, soll]) => soll > 0 && ist != null)
     .map(([name, ist, soll, zeig]) => ({ name, zuviel: ist > soll + 0.0005, text: `${name} ${zeig(ist)} bei zulässig ${zeig(soll)}` }));
   if (fs.grz > 0) { // mit Stellplätzen und Nebenanlagen (BauNVO § 19 Abs. 4); weich: geschätzt oder alter Plan, also kein Urteil
-    const nf = nebenflaechen(a), jahr = altPlan(a), zul = Math.max(fs.grz, Math.min(1.5 * fs.grz, 0.8)), ist = nf ? (fh + nf.summe) / fg : null, mz = (k, ein, mehr) => `${k} ${k === 1 ? ein : mehr}`;
+    const nf = nebenflaechen(a, L), jahr = altPlan(a), zul = Math.max(fs.grz, Math.min(1.5 * fs.grz, 0.8)), ist = nf ? (fh + nf.summe) / fg : null, mz = (k, ein, mehr) => `${k} ${k === 1 ? ein : mehr}`;
     werte.splice(werte.findIndex((w) => w.name === "GRZ") + 1, 0, { name: "GRZ mit Stellplätzen", zuviel: nf ? ist > zul + 0.0005 : false, weich: !nf || nf.geschaetzt || !!jahr,
       text: nf ? `mit Stellplätzen und Nebenanlagen ${de(ist)} bei zulässig ${de(zul)}` : null,
-      hinweis: [nf && !nf.geschaetzt ? "" : "Bei der GRZ zählen Stellplätze, Zufahrten und Nebenanlagen mit. Ihre Flächen dafür fehlen noch" + (nf ? `; die Seite schätzt sie aus ${mz(nf.kfz, "Stellplatz", "Stellplätzen")} je ${nf.stellplatz} m² und ${mz(nf.raeder, "Fahrradplatz", "Fahrradplätzen")}.` : "."),
+      hinweis: [nf && !nf.geschaetzt ? "" : "Bei der GRZ zählen Stellplätze, Zufahrten und Nebenanlagen mit. Ihre Flächen dafür fehlen noch" + (nf ? `; die Seite schätzt sie aus ${mz(nf.kfz, "Stellplatz", "Stellplätzen")} je ${nf.stellplatz} m² und ${mz(nf.raeder, "Fahrradplatz", "Fahrradplätzen")}.` : "."), nf && nf.aus ? nf.aus : "",
         jahr ? `Der Bebauungsplan ist von ${jahr}: Für ihn gilt die Baunutzungsverordnung von damals, und ob Stellplätze bei der GRZ mitzählen, steht dort anders als heute. Der Wert mit Stellplätzen folgt der heutigen.` : ""].filter(Boolean).join(" ") });
   }
   return werte;
@@ -1161,7 +1222,24 @@ function vorAbsenden(a, dateien = []) { // Punkte mit status "fehl", "offen" (An
     { folge: "Verschieben, drehen oder niedriger planen; unten stehen die Wege. Bleibt es dabei, beantragen Sie die Abweichung ausdrücklich und begründen sie auf einem eigenen Blatt." });
   else { const W0 = L.waende.reduce((x, y) => (y.luft < x.luft ? y : x));
     punkt("abstand", "ok", "Abstand zur Grenze", `Alle ${L.waende.length} Wände halten den Abstand. Engste Stelle: Wand ${W0.nr} mit ${de(W0.luft)} m Luft.`); }
-  const abweichung = mitHaus && !L.fehlt.length && L.auf && eng.length > 0;
+  const gar = (anlagenStand(a, L) || {}).garagen; let garFehl = false; // Garage ohne eigenen Abstand: 9 m je Nachbargrenze, 18 m zusammen, 3 m mittlere Wandhöhe
+  if (gar) {
+    const viele = gar.anzahl > 1, steht = viele ? "Die Garagen stehen" : "Die Garage steht", wort = { 2: "zwei", 3: "drei", 4: "vier" }[gar.laengen.length] || gar.laengen.length, nr = (liste) => (viele ? `Garage ${liste.join(", ")}` : "Die Garage");
+    const wo = !gar.laengen.length ? "näher als 3 m an einer Nachbargrenze" : gar.laengen.length === 1 ? `auf ${de(gar.laengen[0])} m an einer Nachbargrenze` : `an ${wort} Nachbargrenzen, auf ${gar.laengen.map(de).join(" m und ")} m`;
+    const REGEL = " Ohne eigenen Abstand zulässig sind 9 m je Nachbargrenze, 18 m an allen zusammen und 3 m mittlere Wandhöhe.", VORAUS = ` Dass ${viele ? "sie" : "die Garage"} keine Aufenthaltsräume ${viele ? "haben" : "hat"}, setzt die Seite voraus.`;
+    const zuLang = gar.laengen.some((x) => x > 9.005) || gar.gesamt > 18.005, zuHoch = gar.hoch.filter((n) => gar.nah.includes(n)), fernHoch = gar.hoch.filter((n) => !gar.nah.includes(n));
+    const UMPLANEN = "Kürzer, niedriger oder weiter von der Grenze planen. Bleibt es dabei, beantragen Sie die Abweichung ausdrücklich und begründen sie auf einem eigenen Blatt.";
+    garFehl = !gar.draussen.length && (zuLang || zuHoch.length > 0);
+    if (gar.draussen.length) punkt("garage", "fehl", "Garage", `${nr(gar.draussen)} liegt nicht ganz auf dem Grundstück.`, { folge: "Lage und Maße im Plan prüfen." });
+    else if (zuHoch.length) punkt("garage", "fehl", "Garage an der Grenze", `${nr(zuHoch)} ist im Mittel ${zuHoch.length > 1 || viele ? "höher als 3 m" : `${de(gar.hoechste)} m hoch`} und steht ${wo}. Ohne eigenen Abstand geht das nur bis 3 m mittlere Wandhöhe.`, { folge: UMPLANEN });
+    else if (zuLang) punkt("garage", "fehl", "Garage an der Grenze", `${steht} ${wo}${gar.laengen.length > 1 ? `, zusammen ${de(gar.gesamt)} m` : ""}.${REGEL}`, { folge: UMPLANEN });
+    else if (gar.ohne.length) punkt("garage", "offen", "Garage an der Grenze", `Die mittlere Wandhöhe ${viele ? "der Garagen" : "der Garage"} fehlt noch.${REGEL}`, { frage: "garage" });
+    else { const fern = !gar.nah.length, text = fern ? `${viele ? "Die Garagen halten" : "Die Garage hält"} 3 m und mehr zu den Nachbargrenzen.` : `${steht} ${wo} und ${viele ? `sind im Mittel höchstens ${de(gar.hoechste)}` : `ist im Mittel ${de(gar.hoechste)}`} m hoch.${REGEL}${VORAUS}`;
+      const selbst = [fernHoch.length && `${nr(fernHoch)} ist im Mittel höher als 3 m und braucht einen eigenen Abstand; den rechnet die Seite nur für das Haus.`,
+        gar.vorBaugrenze.length && `${nr(gar.vorBaugrenze)} liegt außerhalb der Baugrenze. Ob der Bebauungsplan Garagen dort zulässt, steht in seinen Festsetzungen.`].filter(Boolean);
+      punkt("garage", selbst.length ? "selbst" : "ok", fern ? "Garage" : "Garage an der Grenze", [text, ...selbst].join(" ")); }
+  }
+  const abweichung = (mitHaus && !L.fehlt.length && L.auf && eng.length > 0) || garFehl;
 
   const werte = mitHaus ? planWerte(a, L) : [], drueber = werte.filter((w) => w.zuviel && !w.weich), mitPlan = a.planungsrecht === "bplan" || a.planungsrecht === "satzung";
   const st = mitHaus ? staffelStand(L) : null, zumStaffel = st ? ` ${st.text}` : "", grz = werte.some((w) => w.name === "GRZ"), flaechen = grz ? { frage: "flaechen" } : {};
@@ -1239,7 +1317,7 @@ function fristKalender(frist, ort, stempel) { // ganztägiger Termin am Tag der 
 
 if (typeof module !== "undefined") {
   module.exports = { linkSchreibe, linkLies, adressTeile, adressTreffer, dxfSchreibe, de, stellplaetzeKfz, fahrradabstellplaetze, spielplatz, geschuetzt, abstandsflaeche, spielraum, feuerwehr,
-    flaeche, innen, liegtAuf, mitStrassen, freiraum, dxfText, dxfPolygone, lage, loesung, katasterUrl, katasterLies, strassenVorschlag, bplanUrl, bplanTreffer, starthaus, potenzial, umgebung, hoehenUrl, hoehenLies, unterlage, UNTERLAGEN, planWerte, vorAbsenden, versetzt, staffelStand, baugrenzeStand, freiflaechen, nebenflaechen, fristStand, fristKalender };
+    flaeche, innen, liegtAuf, mitStrassen, freiraum, dxfText, dxfPolygone, lage, loesung, katasterUrl, katasterLies, strassenVorschlag, bplanUrl, bplanTreffer, starthaus, potenzial, umgebung, hoehenUrl, hoehenLies, unterlage, UNTERLAGEN, planWerte, vorAbsenden, versetzt, staffelStand, baugrenzeStand, freiflaechen, nebenflaechen, anlagenStand, anlageArt, fristStand, fristKalender };
 }
 </script>
 
@@ -1252,7 +1330,7 @@ const LEER = { vorhaben: null, planungsrecht: null, gebaeudeklasse: null, oberir
   wandhoehe: null, neigung: null, dachhoehe: null, staffelhoehe: null, grundstueck: [], haus: [],
   kataster: { gemarkung: "Münster", flur: null, nummer: null, kennzeichen: null, lage: null, stand: null }, umgebung: { flurstuecke: [], gebaeude: [] },
   bplan: null, // nach einem Abruf in Münster: { kraft: [...], verfahren: [...] }
-  annahmen: { ...ANNAHMEN }, festsetzung: { geschosse: null, grz: null, gfz: null, vorn: null, hinten: null }, nord: false, ursprung: null, baufenster: [], flaechen: { stellplaetze: null, neben: null, unter: null }, frist: null,
+  annahmen: { ...ANNAHMEN }, festsetzung: { geschosse: null, grz: null, gfz: null, vorn: null, hinten: null }, nord: false, ursprung: null, baufenster: [], flaechen: { stellplaetze: null, neben: null, unter: null }, frist: null, anlagen: [],
   // festsetzung.vorn, .hinten: Baugrenzen in Metern ab der Straßengrenze; flaechen: was außer dem Haus bei der GRZ mitzählt, in Quadratmetern; frist: aus dem Schreiben des Bauamts, "JJJJ-MM-TT"
   ziel: null, baulast: false, antrag: { stellplaetze: null, raeder: null, spielflaeche: null }, paket: [] }; // ziel "pruefen": vor dem Absenden; antrag: Zahlen aus dem eigenen Lageplan; paket: [{ name, groesse, schutz }]; ursprung: Ecke im Netz des Katasters, für die DXF-Ausgabe
 const BEISPIEL = { ...LEER, vorhaben: "errichtung", planungsrecht: "34", gebaeudeklasse: 4, oberirdische_geschosse: 4,
@@ -1289,6 +1367,9 @@ const REIHE = {
     + `<label>Balkone, Erker<input type="text" data-p="haus.${i}.vname"></label>` + num(`haus.${i}.vbreite`, "Breite zusammen") + num(`haus.${i}.vtiefe`, "Tiefe") + weg(`haus.${i}`) + `</div>`,
   wohnungen: (i) => `<div class="reihe">` + num(`wohnungen.${i}.anzahl`, "Anzahl", "1") + num(`wohnungen.${i}.wohnflaeche`, "Wohnfläche m²", "0.1")
     + `<label class="haken"><input type="checkbox" data-p="wohnungen.${i}.gefoerdert">gefördert</label>` + weg(`wohnungen.${i}`) + `</div>`,
+  anlagen: (i) => `<div class="reihe"><span class="seitenname breit">Fläche ${i + 1} · Layer ${esc(a.anlagen[i].name || "")} · ${Math.round(Math.abs(flaeche(punkte(a.anlagen[i].punkte))))} m²</span>`
+    + `<label>zählt als<select data-p="anlagen.${i}.art"><option value="">zählt nicht</option>${Object.entries(ANLAGE).map(([k, name]) => `<option value="${k}">${name}</option>`).join("")}</select></label>`
+    + (a.anlagen[i].art === "garage" ? num(`anlagen.${i}.hoehe`, "Mittlere Wandhöhe") : "") + weg(`anlagen.${i}`) + `</div>`,
   baeume: (i) => `<div class="reihe"><label>Baumart<input type="text" data-p="baeume.${i}.art"></label>` + num(`baeume.${i}.stammumfang_cm`, "Umfang cm", "1")
     + `<label class="haken"><input type="checkbox" data-p="baeume.${i}.faellen">wird gefällt oder beschädigt</label>` + weg(`baeume.${i}`) + `</div>`,
 };
@@ -1315,6 +1396,7 @@ function eingabe(e) {
   if (el.type === "checkbox") o[k] = el.checked;
   else if (el.type === "number" || "zahl" in el.dataset) o[k] = el.value === "" || isNaN(Number(el.value)) ? null : Number(el.value);
   else o[k] = el.value === "" ? null : el.value;
+  if (/^anlagen\.\d+\.art$/.test(el.dataset.p)) fuelleFormular(); // die Wandhöhe gibt es nur bei der Garage
   zeichneBlatt();
 }
 $("angaben").addEventListener("input", eingabe);
@@ -1420,6 +1502,10 @@ function zeichnePlan(L, geist, schau = null) {
   t += vieleck(L.g, 'class="grenze" fill="none" stroke="var(--tusche)" stroke-width="1.5" stroke-dasharray="10 4 2 4"');
   if (L.b.length) { const oben = L.b.reduce((x, y) => (y[1] > x[1] ? y : x)); // Baugrenze: blau, Strich und zwei Punkte
     t += vieleck(L.b, 'fill="none" stroke="var(--akzent)" stroke-width="1.2" stroke-dasharray="9 3 1.5 3 1.5 3"') + `<text x="${px(oben[0])}" y="${py(oben[1]) - 5}" text-anchor="middle" class="blei">Baugrenze</text>`; }
+  const STRICH = { garage: 'fill="var(--gebaeude)" fill-opacity=".6" stroke="var(--tusche)" stroke-width="1.2"', stellplatz: 'fill="var(--blei)" fill-opacity=".16" stroke="var(--blei)" stroke-width=".8"',
+    neben: 'fill="var(--kante)" fill-opacity=".4" stroke="var(--blei)" stroke-width=".8"', unter: 'fill="none" stroke="var(--blei)" stroke-width="1" stroke-dasharray="6 3"' };
+  for (const f of L.anlagen) { const m = mittel(f.v); // was außer dem Haus gezeichnet ist; die Nummer steht in der Liste bei den Angaben
+    t += `<g pointer-events="none" data-anlage="${f.art || ""}"${schau ? ' opacity=".35"' : ""}>${vieleck(f.v, STRICH[f.art] || 'fill="none" stroke="var(--blei)" stroke-width=".6" stroke-dasharray="2 3"')}<text x="${px(m[0]).toFixed(1)}" y="${(py(m[1]) + 4).toFixed(1)}" text-anchor="middle" class="blei">${f.nr}</text></g>`; }
   if ($("plan").classList.contains("auftritt")) t += vieleck(L.g, 'class="spur" pathLength="1" stroke-dasharray="1" fill="none" stroke="var(--akzent)" stroke-width="2.5" stroke-linejoin="round"');
   if (L.h.length) t += vieleck(L.h, `fill="var(--gebaeude)" stroke="var(--tusche)" stroke-width="2" stroke-linejoin="round" data-haus${schau ? ' opacity=".35"' : ""}`);
   if (L.oben.length && L.oben.some((p, i) => p[0] !== L.h[i][0] || p[1] !== L.h[i][1])) t += vieleck(L.oben, `fill="none" stroke="var(--tusche)" stroke-width=".8" pointer-events="none"${schau ? ' opacity=".35"' : ""}`);
@@ -1547,6 +1633,7 @@ function zeichneAbsenden(liste) { // die Liste vor dem Absenden: erst was nicht 
   const frage = (p) => !p.frage ? "" : p.frage === "haus" ? `<div class="knoepfe"><button type="button" class="haupt" data-dxf>Lageplan aus CAD laden (DXF)</button><button type="button" data-starthaus>Haus von Hand setzen</button></div>`
     : p.frage === "paket" ? `<div class="knoepfe"><button type="button" class="haupt" data-paket>PDFs auswählen</button></div>`
     : p.frage === "baugrenze" ? `<div class="knoepfe"><button type="button" class="link" data-baugrenzeweg>Baugrenze entfernen</button></div>`
+    : p.frage === "garage" ? `<div class="nachfrage drei">${a.anlagen.map((x, i) => (x.art === "garage" && !(x.hoehe > 0) ? `<label>Mittlere Wandhöhe, Fläche ${i + 1}, m<input type="number" min="0" step="0.01" data-p="anlagen.${i}.hoehe" value=""></label>` : "")).join("")}</div>`
     : p.frage === "flaechen" ? `<div class="nachfrage drei">${[["stellplaetze", "Stellplätze, Zufahrten m²"], ["neben", "Garagen, Nebenanlagen m²"], ["unter", "Tiefgarage neben dem Haus m²"]].map(([k, name]) => `<label>${name}<input type="number" min="0" step="1" data-p="flaechen.${k}" value="${wert(`flaechen.${k}`)}"></label>`).join("")}</div>`
     : p.frage === "wohnungen" ? `<div class="knoepfe"><button type="button" data-gruppe="3">Wohnungen eintragen</button></div>`
     : p.frage === "vorhaben" || p.frage === "oepnv" ? `<label class="ist">${{ vorhaben: "Vorhaben", oepnv: "Bus und Bahn" }[p.frage]}<select data-p="${p.frage}">${$("angaben").querySelector(`[data-p="${p.frage}"]`).innerHTML}</select></label>`
@@ -1700,7 +1787,7 @@ function auftritt() { // nach dem Abruf: Umriss läuft um, Umgebung blendet ein,
 }
 
 // DXF: auf diesem Gerät lesen, größten geschlossenen Linienzug als Grundstück vorschlagen, größten darin als Haus
-let dxfListe = [], dxfNetz = false; // dxfNetz: Die Datei liegt im Netz des Katasters; dann bleibt das Grundstück von dort und die Liste enthält nur, was darauf liegt
+let dxfListe = [], dxfAlle = [], dxfNetz = false; // dxfNetz: Die Datei liegt im Netz des Katasters; dann bleibt das Grundstück von dort und die Liste enthält nur, was darauf liegt
 function dxfSetze(gi, hi, bi) {
   beende();
   let um = (p) => [rund(p[0] - a.ursprung[0]), rund(p[1] - a.ursprung[1])];
@@ -1714,6 +1801,10 @@ function dxfSetze(gi, hi, bi) {
   }
   if (hi >= 0 || !dxfNetz) a.haus = hi >= 0 ? dxfListe[hi].punkte.map(um).map(([x, y]) => ecke(x, y)) : []; // im Netz des Katasters bleibt ein schon gesetztes Haus stehen
   a.baufenster = bi >= 0 && bi !== hi ? dxfListe[bi].punkte.map(um).map(([x, y]) => ({ x, y })) : [];
+  const fest = [dxfNetz ? null : dxfListe[gi], dxfListe[hi], dxfListe[bi]], g = punkte(a.grundstueck); // alles Übrige auf dem Grundstück: erkannte Layer zuerst, dann nach Größe, höchstens 16
+  a.anlagen = dxfAlle.filter((p) => !fest.includes(p) && (anlageArt(p.layer) || !/^PC_/i.test(p.layer))).map((p) => ({ name: p.layer, art: anlageArt(p.layer), hoehe: null, v: p.punkte.map(um) }))
+    .filter((p) => Math.abs(flaeche(p.v)) >= 1 && p.v.some((q) => innen(q, g))).sort((x, y) => !!y.art - !!x.art || Math.abs(flaeche(y.v)) - Math.abs(flaeche(x.v))).slice(0, 16)
+    .map(({ v, ...rest }) => ({ ...rest, punkte: v.map(([x, y]) => ({ x, y })) }));
   neu();
 }
 $("dxfknopf").addEventListener("click", () => $("dxf").click());
@@ -1723,17 +1814,19 @@ async function ladeDxf(datei) {
   const alle = dxfPolygone(dxfText(await datei.arrayBuffer())).sort((x, y) => Math.abs(flaeche(y.punkte)) - Math.abs(flaeche(x.punkte)));
   const g = a.ursprung ? punkte(a.grundstueck) : null, klein = (p) => Math.abs(flaeche(p.punkte)) < 0.9 * Math.abs(flaeche(g)), grenze = (p) => /baugrenz|baufenster|baufeld|[uü]e?berbaubar/i.test(p.layer);
   const darauf = g ? alle.filter((p) => liegtAuf(p.punkte.map(([x, y]) => [x - a.ursprung[0], y - a.ursprung[1]]), g) && (klein(p) || grenze(p))) : []; // im selben Netz und auf dem Grundstück aus dem Kataster
-  dxfNetz = darauf.length > 0; dxfListe = dxfNetz ? darauf : alle;
+  dxfNetz = darauf.length > 0; dxfListe = dxfNetz ? darauf : alle; dxfAlle = alle;
   $("dxfmeldung").hidden = false; $("dxfwahl").hidden = !dxfListe.length; $("dxfGfeld").hidden = dxfNetz;
   if (!dxfListe.length) { $("dxfmeldung").textContent = "In der Datei sind keine geschlossenen Linienzüge. Grundstück und Haus bitte als geschlossene Polylinien exportieren."; return; }
   const bi = dxfListe.findIndex((p, i) => (dxfNetz || i > 0) && grenze(p)); // die Baugrenze am Namen des Layers, das Haus als größter übriger Umriss
-  const hi = dxfListe.findIndex((p, i) => i !== bi && (dxfNetz ? klein(p) : i > 0 && p.punkte.every((pt) => innen(pt, dxfListe[0].punkte))));
+  const hi = dxfListe.findIndex((p, i) => i !== bi && !anlageArt(p.layer) && (dxfNetz ? klein(p) : i > 0 && p.punkte.every((pt) => innen(pt, dxfListe[0].punkte))));
   const wahl = dxfListe.map((p, i) => `<option value="${i}">${esc(p.layer)} · ${p.punkte.length} Punkte</option>`).join(""), keine = (text) => `<option value="-1">${text}</option>`;
   $("dxfG").innerHTML = wahl; $("dxfH").innerHTML = keine("keines aus der Datei") + wahl; $("dxfB").innerHTML = keine("keine") + wahl; $("dxfG").value = 0; $("dxfH").value = hi; $("dxfB").value = bi;
   $("dxfmeldung").textContent = (dxfNetz ? `Ihre Datei liegt im Netz des Katasters. Das Grundstück bleibt, wie es ist${hi >= 0 ? `; das Haus kommt aus Layer ${dxfListe[hi].layer}` : ""}`
       : `${dxfListe.length} geschlossene Linienzüge gelesen. Vorschlag: der größte als Grundstück, der größte darin als Haus`)
     + (bi >= 0 ? `, die Baugrenze aus Layer ${dxfListe[bi].layer}` : "") + `. Passt die Wahl nicht, ändern Sie sie hier. ${dxfNetz ? "" : "Straßen, "}Wandhöhe und Dach bitte ergänzen.`;
   dxfSetze(0, hi, bi);
+  const erkannt = a.anlagen.filter((x) => x.art).length;
+  if (a.anlagen.length) $("dxfmeldung").textContent += ` Dazu ${a.anlagen.length === 1 ? "eine weitere Fläche" : `${a.anlagen.length} weitere Flächen`}${erkannt ? `, ${erkannt} davon am Layer erkannt` : ""}: Sie stehen unter „Flächen außer dem Haus“.`;
 }
 $("dxf").addEventListener("change", (e) => { ladeDxf(e.target.files[0]); e.target.value = ""; });
 let ueber = 0; // Datei über der Seite
@@ -1791,7 +1884,7 @@ async function uebernimm(ich, vorweg = "") { // ein Flurstück aus dem Kataster:
   a.umgebung = { flurstuecke: nachbarn.map((o) => o.ring.map(um)), gebaeude: gebaeude.map((o) => o.ring.map(um)), // art: was das Kataster zu jedem Umriss sagt, in derselben Reihenfolge
     art: { flurstuecke: nachbarn.map((o) => ({ nutzung: o.nutzung, lage: o.lage })), gebaeude: gebaeude.map((o) => ({ art: o.felder.gebnutzbez || "", funktion: o.felder.funktion || "", id: (o.felder.oid || "").slice(0, 16) })) },
     hoehen: null, wahl: {}, messen: null }; // messen: null, bis das Büro den Haken selbst setzt
-  a.haus = []; // kein Haus vorgeben: Die Stufen zeigen, was passt
+  a.haus = []; a.baufenster = []; a.anlagen = []; // kein Haus vorgeben: Die Stufen zeigen, was passt; Zeichnungen vom vorigen Grundstück gehen
   a.festsetzung = structuredClone(LEER.festsetzung); // anderes Grundstück, anderer Plan
   a.nord = true; // Kataster-Koordinaten: Norden ist oben
   a.ursprung = [x0, y0];
