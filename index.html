@@ -166,6 +166,11 @@ table.nachweis { width: 100%; border-collapse: collapse; font: 12px/1.2 var(--mo
 .stufe .balken { grid-column: 1 / -1; height: 3px; border-radius: 2px; background: var(--raster); overflow: hidden; }
 .stufe .balken i { display: block; height: 100%; background: var(--blei); transition: width .5s; }
 .stufe.beste .balken i { background: var(--akzent); } .stufe.beste .we { color: var(--akzent); }
+.stufe .we small { font: 500 11px/1.4 var(--text); color: var(--warn); margin-left: 6px; }
+.bilanz { grid-column: 1 / -1; display: flex; height: 8px; border-radius: 2px; background: var(--grund); box-shadow: inset 0 0 0 1px var(--raster); overflow: hidden; margin-top: 6px; }
+.bilanz i { height: 100%; } .bilanz[data-eng] { box-shadow: inset 0 0 0 1px var(--fehl); }
+.bilanz .haus, .schluessel .haus { background: var(--tusche); } .bilanz .st, .schluessel .st { background: var(--blei); } .bilanz .rad, .schluessel .rad { background: var(--kante); } .bilanz .spiel, .schluessel .spiel { background: var(--ok); opacity: .55; }
+.schluessel { grid-column: 1 / -1; display: flex; flex-wrap: wrap; gap: 2px 12px; margin: 4px 0 0; font-size: 11px; color: var(--blei); } .schluessel i { display: inline-block; width: 8px; height: 8px; border-radius: 1px; margin-right: 4px; }
 .stufe { cursor: pointer; } .stufe.gewaehlt { background: var(--akzent-flaeche); }
 .stufe p { margin: 2px 0 0; grid-column: 1 / -1; } .stufe button { grid-column: 1 / -1; justify-self: start; margin-top: 4px; }
 
@@ -246,7 +251,7 @@ dialog h2 { border: 0; padding: 0; margin: 14px 0 4px; } dialog h2:first-child {
   #buehne { height: 115mm; border: 1px solid var(--raster); break-inside: avoid; } #plan [data-g], #plan [data-h], #plan [data-dreh] { display: none; } .haken, [data-hoehen] { display: none; }
   #blatt { overflow: visible; border: 0; padding: 8mm 0 0; } .statusleiste { border: 0; padding: 4px 0; } .statusleiste > span + span { border: 0; margin: 0; padding: 0; }
   #weg, .plan .klein, .legende, #passtzeilen .klein:has(button) { display: none; } /* Bedienhinweise gehören nicht aufs Blatt */
-  .weg, .zeile, .kacheln, .stufe, .plan, .nachweis tr, .rechenweg p, .fuss { break-inside: avoid; } h2 { break-after: avoid; }
+  .weg, .zeile, .punkt, .kacheln, .stufe, .plan, .nachweis tr, .rechenweg p, .fuss { break-inside: avoid; } .wahl, .punkt .knoepfe { display: none; } .ist input, .punkt .nachfrage input { border: 0; padding: 0; } h2 { break-after: avoid; }
   .nachfrage input { border: 0; padding: 0; }
 }
 </style>
@@ -308,7 +313,7 @@ dialog h2 { border: 0; padding: 0; margin: 14px 0 4px; } dialog h2:first-child {
         <div id="haus"></div>
         <button type="button" data-neu="haus">Ecke hinzufügen</button>
       </div></details>
-      <p class="klein">Flachdach: Neigung und Dachhöhe leer lassen. Eine Wandhöhe für das ganze Haus. Mit Staffelgeschoss: Die Wandhöhe reicht bis unter das Staffelgeschoss, mit Brüstung der Terrasse; je Wand tragen Sie ein, wie weit es zurückspringt (leer heißt bündig), Neigung und Dachhöhe gelten für das Dach darüber. Balkone und Erker je Wand zusammen, mittig und so hoch wie die Wand angenommen. Nicht geprüft: Baulinien aus dem Bebauungsplan und Abstandsflächen mehrerer Gebäude untereinander. Die Baugrenze prüft die Seite nur, wenn sie in Ihrer DXF-Datei liegt.</p>
+      <p class="klein">Flachdach: Neigung und Dachhöhe leer lassen. Eine Wandhöhe für das ganze Haus. Mit Staffelgeschoss: Die Wandhöhe reicht bis unter das Staffelgeschoss, mit Brüstung der Terrasse; je Wand tragen Sie ein, wie weit es zurückspringt (leer heißt bündig), Neigung und Dachhöhe gelten für das Dach darüber. Balkone und Erker je Wand zusammen, mittig und so hoch wie die Wand angenommen. Nicht geprüft: Baulinien aus dem Bebauungsplan und Abstandsflächen mehrerer Gebäude untereinander. Die Baugrenze prüft die Seite nur, wenn Sie sie bei den Werten aus dem Plan eintragen oder sie in Ihrer DXF-Datei liegt.</p>
     </div></details>
     <details class="gruppe" name="gruppe"><summary><span class="nr">4</span>Wohnungen</summary><div class="inhalt">
       <div id="wohnungen"></div>
@@ -318,12 +323,20 @@ dialog h2 { border: 0; padding: 0; margin: 14px 0 4px; } dialog h2:first-child {
         <label>Bus und Bahn<select data-p="oepnv"><option value="">bitte wählen</option><option value="keiner">keine Haltestelle in 300 m</option><option value="bus_20">Bus alle 20 Minuten in 300 m</option><option value="bus_10">Bus alle 10 Minuten in 300 m</option><option value="altstadt">Altstadt, östlicher Bahnhofsbereich</option></select></label>
       </div>
     </div></details>
-    <details class="gruppe" name="gruppe"><summary><span class="nr">5</span>Bäume</summary><div class="inhalt">
+    <details class="gruppe" name="gruppe"><summary><span class="nr">5</span>Flächen außer dem Haus</summary><div class="inhalt">
+      <div class="paar">
+        <label>Stellplätze mit Zufahrten (m²)<input type="number" min="0" step="1" data-p="flaechen.stellplaetze"></label>
+        <label>Garagen, Nebenanlagen, Fahrradplätze (m²)<input type="number" min="0" step="1" data-p="flaechen.neben"></label>
+        <label>Tiefgarage neben dem Haus (m²)<input type="number" min="0" step="1" data-p="flaechen.unter"></label>
+      </div>
+      <p class="klein">Diese Flächen zählen bei der GRZ mit. Der Bebauungsplan lässt dafür die Hälfte mehr zu, höchstens 0,8. Leer lassen: Dann schätzt die Seite aus Stellplätzen und Fahrradplätzen.</p>
+    </div></details>
+    <details class="gruppe" name="gruppe"><summary><span class="nr">6</span>Bäume</summary><div class="inhalt">
       <div id="baeume"></div>
       <button type="button" data-neu="baeume">Baum hinzufügen</button>
       <p class="klein">Stammumfang in 1 m Höhe. Mehrstämmige Bäume, Baumgruppen und im Bebauungsplan festgesetzte Bäume sind hier nicht erfasst.</p>
     </div></details>
-    <details class="gruppe" name="gruppe"><summary><span class="nr">6</span>Feuerwehr</summary><div class="inhalt">
+    <details class="gruppe" name="gruppe"><summary><span class="nr">7</span>Feuerwehr</summary><div class="inhalt">
       <label>Zweiter Rettungsweg<select data-p="zweiter_rettungsweg"><option value="">noch offen</option><option value="treppe">zweite Treppe</option><option value="feuerwehr">über Leitern der Feuerwehr</option></select></label>
       <label class="haken"><input type="checkbox" data-p="rueckwaertig">Gebäude liegt hinter einem anderen, nicht an der Straße</label>
       <div class="paar">
@@ -331,12 +344,13 @@ dialog h2 { border: 0; padding: 0; margin: 14px 0 4px; } dialog h2:first-child {
         <label>Größte Entfernung zur Straße (m)<input type="number" min="0" step="0.1" data-p="entfernung_verkehrsflaeche"></label>
       </div>
     </div></details>
-    <details class="gruppe" name="gruppe"><summary><span class="nr">7</span>Annahmen für „Was passt“</summary><div class="inhalt">
+    <details class="gruppe" name="gruppe"><summary><span class="nr">8</span>Annahmen für „Was passt“</summary><div class="inhalt">
       <div class="paar">
         <label>Höhe je Geschoss (m)<input type="number" min="2" step="0.05" data-p="annahmen.geschosshoehe"></label>
         <label>Haustiefe höchstens (m)<input type="number" min="4" step="0.5" data-p="annahmen.haustiefe"></label>
         <label>Wohnfläche in % der Geschossfläche<input type="number" min="1" max="100" step="1" data-p="annahmen.anteil"></label>
         <label>Wohnungsgröße (m²)<input type="number" min="10" step="1" data-p="annahmen.wohnung"></label>
+        <label>Stellplatz samt Zufahrt (m²)<input type="number" min="10" step="0.5" data-p="annahmen.stellplatz"></label>
       </div>
       <p class="klein">Faustwerte für die Tabelle „Was passt auf dieses Grundstück“. Bitte an Ihr Vorhaben anpassen.</p>
     </div></details>
@@ -947,7 +961,18 @@ function hoehenLies(gml) {
   return h;
 }
 
-const ANNAHMEN = { geschosshoehe: 3, haustiefe: 14, anteil: 75, wohnung: 75 };
+const ANNAHMEN = { geschosshoehe: 3, haustiefe: 14, anteil: 75, wohnung: 75, stellplatz: 25 }; // stellplatz: Quadratmeter je Stellplatz samt Zufahrt, Faustwert
+const RAD = 0.75 * (2 + 1.8 / 2); // Fahrradplatz 0,75 × 2,00 m mit halber Fahrgasse von 1,80 m, Maße aus der Stellplatzsatzung Münster: 2,175 m²
+const planJahr = (a) => { const jahre = ((a.bplan || {}).kraft || []).map((b) => Number(String(b.datum).slice(0, 4))).filter((j) => j > 1800); return jahre.length ? Math.min(...jahre) : null; };
+const altPlan = (a) => (planJahr(a) !== null && planJahr(a) < 1990 ? planJahr(a) : null); // vor der Baunutzungsverordnung von 1990: Die heutige Regel zu Stellplätzen bei der GRZ wird nicht angelegt
+// Was außer dem Haus Fläche braucht. Bei der GRZ zählen Stellplätze mit Zufahrten und Nebenanlagen mit; die zulässige Grundfläche darf dadurch um die Hälfte
+// überschritten werden, höchstens bis 0,8 (BauNVO § 19 Abs. 4 S. 1 und 2). Fahrradplätze zählen als Nebenanlage, die Spielfläche nicht.
+function freiflaechen(F, haus, kfz, raeder, spiel, stellplatz, grz) {
+  const zehntel = (x) => Math.round(x * 10) / 10, vier = (x) => Math.round(x * 1e4) / 1e4, st = kfz * stellplatz, rad = raeder * RAD, rest = F - haus - st - rad - spiel;
+  const zul = grz > 0 ? Math.max(grz, Math.min(1.5 * grz, 0.8)) : null, grz2 = zul === null ? null : (haus + st + rad) / F;
+  const grund = rest < -1e-6 ? "flaeche" : zul !== null && grz2 > zul + 1e-6 ? "grz" : null;
+  return { stellplaetze: zehntel(st), raeder: zehntel(rad), spiel, rest: zehntel(rest), grz2: grz2 === null ? null : vier(grz2), zulaessig: zul === null ? null : vier(zul), passt: !grund, grund };
+}
 function potenzial(a, hoechstens = 6) {
   const G = a.grundstueck;
   if (G.length < 3 || !G.every((p) => istZahl(p.x, p.y)) || Math.abs(flaeche(punkte(G))) < 0.01) return null;
@@ -955,7 +980,7 @@ function potenzial(a, hoechstens = 6) {
   // Was das Büro aus dem Bebauungsplan abgetippt hat: Vollgeschosse, GRZ, GFZ. Die GRZ deckelt die Grundfläche, die GFZ die Geschossfläche aller Geschosse,
   // beide bezogen auf die ganze Fläche des Flurstücks (BauNVO § 19 Abs. 1 bis 3, § 20 Abs. 2 und 3). Gezählt wird nur dieses Haus, jedes Geschoss als Vollgeschoss.
   // a.rahmen = { grundflaeche, hoehe }: die größten Werte der gezählten Nachbarn; deckeln Grundfläche und Höhe zusätzlich.
-  const fest = a.festsetzung || {}, um = a.rahmen || {}, F = Math.abs(flaeche(g));
+  const fest = a.festsetzung || {}, um = a.rahmen || {}, F = Math.abs(flaeche(g)), alt = altPlan(a);
   for (const k in ANNAHMEN) if (a.annahmen && a.annahmen[k] > 0) an[k] = a.annahmen[k];
   const xs = g.map((p) => p[0]), ys = g.map((p) => p[1]);
   const z = Math.max(0.25, Math.sqrt((Math.max(...xs) - Math.min(...xs)) * (Math.max(...ys) - Math.min(...ys)) / 20000)), zugabe = z * 0.71 + 0.02; // Zellmitte bis Zellecke
@@ -965,6 +990,18 @@ function potenzial(a, hoechstens = 6) {
     if (!richtungen.some((r) => { const c = Math.abs(r[0] * u[0] + r[1] * u[1]); return c > 0.998 || c < 0.05; })) richtungen.push(u);
   }
   const raster = richtungen.map((u) => abstandsRaster(g, rand, u, z)), zeilen = [];
+  // Baufenster: die Baugrenze als Linie aus der eigenen Zeichnung (a.baufenster), sonst zwei Maße ab der Straßengrenze aus dem Plan (festsetzung.vorn, .hinten);
+  // dazu der Rahmen der Nachbarn (rahmen.vorn, .tiefe). Es gilt jeweils das engere Maß. Zellen außerhalb zählen wie Zellen außerhalb des Grundstücks.
+  // Die Ecken des Hauses liegen auf Zellmitten: Für die Maße ab der Straße genügen 2 cm Zugabe, für eine Linie mit einspringender Ecke braucht es die Zugabe bis zur Zellecke.
+  const strassen = G.map((p, i) => (p.strasse > 0 ? { a: g[i], b: g[(i + 1) % g.length] } : null)).filter(Boolean), bf = (a.baufenster || []).length >= 3 ? punkte(a.baufenster) : null;
+  const mass = (x) => (strassen.length && x > 0 ? x : 0), vorn = Math.max(bf ? 0 : mass(fest.vorn), mass(um.vorn)), hinten = Math.min(...[bf ? 0 : mass(fest.hinten), mass(um.tiefe)].filter(Boolean), Infinity);
+  const baufenster = bf ? "datei" : vorn > 0 || hinten < Infinity ? "masse" : null;
+  const drehung = bf ? bf.map((p, i) => seite(p, bf[(i + 1) % bf.length], bf[(i + 2) % bf.length])) : [], rand2 = drehung.every((x) => x >= 0) || drehung.every((x) => x <= 0) ? 0.02 : zugabe; // ohne einspringende Ecke genügen auch hier 2 cm
+  if (baufenster) for (const r of raster) for (let j = 0; j < r.nt; j++) for (let i = 0; i < r.ns; i++) {
+    if (r.m[j * r.ns + i] < 0) continue;
+    const p = r.ort(i, j), d = strassen.length ? strassenAbstand(p, strassen) : 0;
+    if (d < vorn + (vorn ? 0.02 : 0) || d > hinten - 0.02 || (bf && !(innen(p, bf) && Math.min(...nachbarn(bf).map(([q0, q1]) => abstandStrecke(p, q0, q1))) >= rand2))) r.m[j * r.ns + i] = -1;
+  }
   const noetig = (wandhoehe, n) => abstandsflaeche({ breite: 10, wandhoehe, abstand_grenze: 0, giebel: false, dach: { neigung_grad: 0, hoehe: 0, gauben_laenge: 0 }, vorbauten: [] }, 3, n, baugebiet).tiefe;
   const stufe = (n, wandhoehe, tiefe, staffel = null) => { // größtes Rechteck, das rundum tiefe hält, auf die Deckel aus Plan und Umgebung gekürzt; staffel: Rücksprung des Geschosses darüber oder eine Funktion, die ihn aus den Maßen bestimmt
     const fenster = raster[0].m.reduce((sum, x) => sum + (x >= tiefe ? 1 : 0), 0) * z * z;
@@ -990,7 +1027,12 @@ function potenzial(a, hoechstens = 6) {
     }
     const st = haus && staffel ? staffel(mass) : null, hoehe = rund(wandhoehe + (st ? an.geschosshoehe : 0));
     const grund = haus ? mass[0] * mass[1] : 0, wohn = grund * (n + (st ? st.anteil : 0)) * an.anteil / 100, we = Math.floor(wohn / an.wohnung + 1e-9), liste = [{ anzahl: we, wohnflaeche: an.wohnung }];
-    return { geschosse: n, wandhoehe, tiefe, fenster: Math.round(fenster), haus, breite: haus ? rund(Math.max(...mass)) : 0, haustiefe: haus ? rund(Math.min(...mass)) : 0,
+    const bilanz = (k, flaecheHaus) => { const l = [{ anzahl: k, wohnflaeche: an.wohnung }], spiel = k ? spielplatz(l, 0, "errichtung") : null; // Stellplätze, Fahrradplätze und Spielfläche für k Wohnungen neben einem Haus dieser Grundfläche
+      return freiflaechen(F, flaecheHaus, k ? stellplaetzeKfz(l, a.oepnv || "keiner").mit_abschlag : 0, k ? fahrradabstellplaetze(l) || 0 : 0, spiel ? spiel.flaeche : 0, an.stellplatz, alt ? null : fest.grz); };
+    const frei = bilanz(we, grund), jeWe = an.wohnung / (an.anteil / 100) / (n + (st ? st.anteil : 0)); // jeWe: Grundfläche, die eine Wohnung braucht
+    let oberirdisch = null; // passt es nicht: die größte kleinere Zahl von Wohnungen, deren Haus samt Stellplätzen auf dem Grundstück passt
+    if (haus && !frei.passt) { oberirdisch = we - 1; while (oberirdisch > 0 && !bilanz(oberirdisch, oberirdisch * jeWe).passt) oberirdisch--; }
+    return { frei, ...(oberirdisch === null ? {} : { oberirdisch }), geschosse: n, wandhoehe, tiefe, fenster: Math.round(fenster), haus, breite: haus ? rund(Math.max(...mass)) : 0, haustiefe: haus ? rund(Math.min(...mass)) : 0,
       grundflaeche: Math.round(grund), wohnflaeche: Math.round(wohn), wohnungen: we, kfz: we ? stellplaetzeKfz(liste, a.oepnv || "keiner").mit_abschlag : 0,
       raeder: we ? fahrradabstellplaetze(liste) : null, spiel: we ? spielplatz(liste, 0, "errichtung") : null,
       grenze, ueber: fest.geschosse > 0 && n > fest.geschosse, hoch: um.hoehe > 0 && hoehe > um.hoehe, ...(st ? { staffel: st } : {}) }; // ueber: mehr Geschosse, als der Plan zulässt; hoch: höher als die Nachbarn
@@ -1008,7 +1050,8 @@ function potenzial(a, hoechstens = 6) {
   }
   zeilen.forEach((r, i) => { r.nr = i + 1; }); // Kennung der Stufe; bis hoechstens gleich der Geschosszahl
   const wert = (x) => (x > 0 ? x : null);
-  return { zeilen, annahmen: an, baugebiet, festsetzung: { geschosse: wert(fest.geschosse), grz: wert(fest.grz), gfz: wert(fest.gfz) }, rahmen: { grundflaeche: wert(um.grundflaeche), hoehe: wert(um.hoehe) } };
+  return { zeilen, annahmen: an, baugebiet, baufenster, altplan: alt, festsetzung: { geschosse: wert(fest.geschosse), grz: wert(fest.grz), gfz: wert(fest.gfz), vorn: wert(fest.vorn), hinten: wert(fest.hinten) },
+    rahmen: { grundflaeche: wert(um.grundflaeche), hoehe: wert(um.hoehe), vorn: wert(um.vorn), tiefe: wert(um.tiefe) } };
 }
 
 // Vor dem Absenden: Entwurf, Zahlen im Lageplan und das Paket fürs Bauportal in einer Liste.
@@ -1069,11 +1112,41 @@ function staffelStand(L) { // Vollgeschoss ist ein Geschoss nur mit mehr als dre
   const flaecheOben = Math.abs(flaeche(L.oben)), anteil = flaecheOben / Math.abs(flaeche(L.h)), voll = anteil > 0.75;
   return { anteil, voll, flaeche: flaecheOben, text: `Das Staffelgeschoss hat ${de(Math.round(anteil * 1000) / 10).slice(0, -1)} % der Fläche des Geschosses darunter und zählt ${voll ? "" : "nicht "}als Vollgeschoss; die Grenze liegt bei mehr als drei Vierteln.` };
 }
+function nebenflaechen(a) { // was außer dem Haus bei der GRZ mitzählt: vom Büro eingetragen, sonst aus Stellplätzen und Fahrradplätzen geschätzt; null, wenn beides fehlt
+  const fl = a.flaechen || {}, da = [fl.stellplaetze, fl.neben, fl.unter].filter((x) => x != null);
+  if (da.length) return { summe: da.reduce((s, x) => s + x, 0), geschaetzt: false };
+  const wohnungen = (a.wohnungen || []).filter((w) => Number.isInteger(w.anzahl) && w.anzahl > 0 && istZahl(w.wohnflaeche));
+  if (!wohnungen.length || !a.oepnv) return null;
+  const kfz = stellplaetzeKfz(wohnungen, a.oepnv).mit_abschlag, raeder = fahrradabstellplaetze(wohnungen) || 0, stellplatz = (a.annahmen || {}).stellplatz > 0 ? a.annahmen.stellplatz : ANNAHMEN.stellplatz;
+  return { summe: kfz * stellplatz + raeder * RAD, geschaetzt: true, kfz, raeder, stellplatz };
+}
 function planWerte(a, L) { // das Haus gegen Vollgeschosse, GRZ und GFZ aus dem Bebauungsplan; gezählt ist nur dieses Haus. Geschossfläche nur in Vollgeschossen (BauNVO § 20 Abs. 3 S. 1)
   const fs = a.festsetzung || {}, fg = Math.abs(flaeche(L.g)), fh = Math.abs(flaeche(L.h)), n = a.oberirdische_geschosse, st = staffelStand(L);
   const kein = st && !st.voll, gf = !n ? null : st ? fh * (n - 1) + (st.voll ? st.flaeche : 0) : fh * n;
-  return [[kein ? "Vollgeschosse" : "Geschosse", n == null ? null : n - (kein ? 1 : 0), fs.geschosse, String], ["GRZ", fh / fg, fs.grz, de], ["GFZ", gf === null ? null : gf / fg, fs.gfz, de]].filter(([, ist, soll]) => soll > 0 && ist != null)
+  const werte = [[kein ? "Vollgeschosse" : "Geschosse", n == null ? null : n - (kein ? 1 : 0), fs.geschosse, String], ["GRZ", fh / fg, fs.grz, de], ["GFZ", gf === null ? null : gf / fg, fs.gfz, de]].filter(([, ist, soll]) => soll > 0 && ist != null)
     .map(([name, ist, soll, zeig]) => ({ name, zuviel: ist > soll + 0.0005, text: `${name} ${zeig(ist)} bei zulässig ${zeig(soll)}` }));
+  if (fs.grz > 0) { // mit Stellplätzen und Nebenanlagen (BauNVO § 19 Abs. 4); weich: geschätzt oder alter Plan, also kein Urteil
+    const nf = nebenflaechen(a), jahr = altPlan(a), zul = Math.max(fs.grz, Math.min(1.5 * fs.grz, 0.8)), ist = nf ? (fh + nf.summe) / fg : null, mz = (k, ein, mehr) => `${k} ${k === 1 ? ein : mehr}`;
+    werte.splice(werte.findIndex((w) => w.name === "GRZ") + 1, 0, { name: "GRZ mit Stellplätzen", zuviel: nf ? ist > zul + 0.0005 : false, weich: !nf || nf.geschaetzt || !!jahr,
+      text: nf ? `mit Stellplätzen und Nebenanlagen ${de(ist)} bei zulässig ${de(zul)}` : null,
+      hinweis: [nf && !nf.geschaetzt ? "" : "Bei der GRZ zählen Stellplätze, Zufahrten und Nebenanlagen mit. Ihre Flächen dafür fehlen noch" + (nf ? `; die Seite schätzt sie aus ${mz(nf.kfz, "Stellplatz", "Stellplätzen")} je ${nf.stellplatz} m² und ${mz(nf.raeder, "Fahrradplatz", "Fahrradplätzen")}.` : "."),
+        jahr ? `Der Bebauungsplan ist von ${jahr}: Für ihn gilt die Baunutzungsverordnung von damals, und ob Stellplätze bei der GRZ mitzählen, steht dort anders als heute. Der Wert mit Stellplätzen folgt der heutigen.` : ""].filter(Boolean).join(" ") });
+  }
+  return werte;
+}
+
+const strassenAbstand = (p, strassen) => Math.min(...strassen.map((s) => abstandStrecke(p, s.a, s.b)));
+function baugrenzeStand(a, L) { // null: keine Baugrenze bekannt; sonst { ok, text }, ok ist null, wenn die Seite nicht messen kann. Die Linie aus der DXF-Datei geht den Maßen aus dem Plan vor
+  const fs = a.festsetzung || {}, vorn = fs.vorn > 0 ? fs.vorn : null, hinten = fs.hinten > 0 ? fs.hinten : null, zusatz = " Geprüft ist der Umriss des Hauses, ohne Balkone und Erker.";
+  if (L.b.length) { const aussen = L.h.filter((p) => !innen(p, L.b));
+    return liegtAuf(L.h, L.b) ? { ok: true, text: "Das Haus liegt innerhalb der Baugrenze aus Ihrer Datei." + zusatz } : { ok: false, text: !aussen.length ? "Das Haus schneidet die Baugrenze."
+      : `${aussen.length === 1 ? "Eine Ecke des Hauses liegt" : `${aussen.length} Ecken des Hauses liegen`} außerhalb, bis zu ${de(Math.max(...aussen.map((p) => Math.min(...nachbarn(L.b).map(([q0, q1]) => abstandStrecke(p, q0, q1))))))} m.` }; }
+  if (vorn === null && hinten === null) return null;
+  if (!L.strassen.length) return { ok: null, text: "Die Seite misst die Baugrenzen ab der Straße, und an diesem Grundstück ist keine Straße eingetragen. Unter „Angaben“, „Grenzpunkte als Zahlen“ tragen Sie ihre Breite ein." };
+  const d = L.h.map((p) => strassenAbstand(p, L.strassen)), davor = vorn === null ? 0 : Math.max(...d.map((x) => vorn - x)), dahinter = hinten === null ? 0 : Math.max(...d.map((x) => x - hinten));
+  const teile = [davor > 0.005 && `bis zu ${de(davor)} m vor der vorderen Baugrenze`, dahinter > 0.005 && `bis zu ${de(dahinter)} m hinter der hinteren Baugrenze`].filter(Boolean);
+  return teile.length ? { ok: false, text: `Das Haus liegt ${teile.join(" und ")}.` }
+    : { ok: true, text: `Das Haus liegt ${vorn !== null && hinten !== null ? "zwischen den Baugrenzen" : vorn !== null ? "hinter der vorderen Baugrenze" : "vor der hinteren Baugrenze"} aus Ihren Angaben.` + zusatz };
 }
 
 function vorAbsenden(a, dateien = []) { // Punkte mit status "fehl", "offen" (Angabe fehlt), "selbst" (prüfen Sie), "ok" oder "nicht" (prüft die Seite nicht); dateien: [{ name, groesse, schutz }]
@@ -1090,18 +1163,16 @@ function vorAbsenden(a, dateien = []) { // Punkte mit status "fehl", "offen" (An
     punkt("abstand", "ok", "Abstand zur Grenze", `Alle ${L.waende.length} Wände halten den Abstand. Engste Stelle: Wand ${W0.nr} mit ${de(W0.luft)} m Luft.`); }
   const abweichung = mitHaus && !L.fehlt.length && L.auf && eng.length > 0;
 
-  const werte = mitHaus ? planWerte(a, L) : [], drueber = werte.filter((w) => w.zuviel), mitPlan = a.planungsrecht === "bplan" || a.planungsrecht === "satzung";
-  const st = mitHaus ? staffelStand(L) : null, zumStaffel = st ? ` ${st.text}` : "";
-  if (drueber.length) punkt("plan", "fehl", "Werte aus dem Bebauungsplan", `${drueber.map((w) => w.text).join(", ")}.${zumStaffel}`, { folge: AUSNAHME });
-  else if (werte.length) { const grz = werte.some((w) => w.name === "GRZ");
-    punkt("plan", grz ? "selbst" : "ok", "Werte aus dem Bebauungsplan", `${werte.map((w) => w.text).join(", ")}.${zumStaffel}` + (grz ? " Gezählt ist nur das Haus. Bei der GRZ zählen Stellplätze, Zufahrten und Nebenanlagen mit; das rechnen Sie selbst." : st ? "" : " Jedes Geschoss ist als Vollgeschoss gezählt.")); }
+  const werte = mitHaus ? planWerte(a, L) : [], drueber = werte.filter((w) => w.zuviel && !w.weich), mitPlan = a.planungsrecht === "bplan" || a.planungsrecht === "satzung";
+  const st = mitHaus ? staffelStand(L) : null, zumStaffel = st ? ` ${st.text}` : "", grz = werte.some((w) => w.name === "GRZ"), flaechen = grz ? { frage: "flaechen" } : {};
+  const satz = (liste) => { const s = liste.filter((w) => w.text).map((w) => w.text).join(", "); return s[0].toUpperCase() + s.slice(1) + "."; }, hinweise = werte.filter((w) => w.hinweis).map((w) => ` ${w.hinweis}`).join("");
+  if (drueber.length) punkt("plan", "fehl", "Werte aus dem Bebauungsplan", `${satz(drueber)}${zumStaffel}`, { folge: AUSNAHME, ...flaechen });
+  else if (werte.length) punkt("plan", werte.some((w) => w.weich) ? "selbst" : "ok", "Werte aus dem Bebauungsplan", `${satz(werte)}${zumStaffel}${hinweise}` + (grz || st ? "" : " Jedes Geschoss ist als Vollgeschoss gezählt."), flaechen);
   else if (mitPlan && mitHaus) punkt("plan", "offen", "Werte aus dem Bebauungsplan", "Vollgeschosse, GRZ und GFZ aus dem Plan unten eintragen, dann vergleicht die Seite.");
-  const ueberGrenze = mitHaus && L.b.length > 0 && !liegtAuf(L.h, L.b), aussen = ueberGrenze ? L.h.filter((p) => !innen(p, L.b)) : [];
-  if (ueberGrenze) punkt("baugrenze", "fehl", "Baugrenze", !aussen.length ? "Das Haus schneidet die Baugrenze."
-    : `${aussen.length === 1 ? "Eine Ecke des Hauses liegt" : `${aussen.length} Ecken des Hauses liegen`} außerhalb, bis zu ${de(Math.max(...aussen.map((p) => Math.min(...nachbarn(L.b).map(([q0, q1]) => abstandStrecke(p, q0, q1))))))} m.`, { folge: AUSNAHME, frage: "baugrenze" });
-  else if (mitHaus && L.b.length) punkt("baugrenze", "ok", "Baugrenze", "Das Haus liegt innerhalb der Baugrenze aus Ihrer Datei. Geprüft ist der Umriss des Hauses, ohne Balkone und Erker.", { frage: "baugrenze" });
-  if (mitPlan) punkt("baugrenzen", "nicht", L.b.length ? "Baulinien, Bauweise" : "Baugrenzen, Baulinien, Bauweise", "Stehen im Bebauungsplan. Die Seite liest den Plan nicht."
-    + (L.b.length ? "" : " Liegt die Baugrenze als geschlossene Linie in Ihrer DXF-Datei, prüft die Seite das Haus dagegen."));
+  const bg = mitHaus ? baugrenzeStand(a, L) : null, ueberGrenze = !!bg && bg.ok === false, fest = a.festsetzung || {}, kennt = L.b.length > 0 || fest.vorn > 0 || fest.hinten > 0;
+  if (bg) punkt("baugrenze", ueberGrenze ? "fehl" : bg.ok ? "ok" : "selbst", "Baugrenze", bg.text, { ...(ueberGrenze ? { folge: AUSNAHME } : {}), ...(L.b.length ? { frage: "baugrenze" } : {}) });
+  if (mitPlan) punkt("baugrenzen", "nicht", kennt ? "Baulinien, Bauweise" : "Baugrenzen, Baulinien, Bauweise", "Stehen im Bebauungsplan. Die Seite liest den Plan nicht."
+    + (kennt ? "" : " Tragen Sie die Baugrenzen unten bei den Werten aus dem Plan ein oder laden Sie sie als geschlossene Linie in Ihrer DXF-Datei, dann prüft die Seite das Haus dagegen."));
   else if (String(a.planungsrecht) === "34") punkt("einfuegen", "nicht", "Einfügen in die Umgebung", "Die Seite misst, was die Nachbarn gebaut haben. Ob sich das Haus einfügt, beurteilt das Bauamt.");
   if (mitHaus) punkt("mehr", "nicht", "Nebengebäude und mehrere Häuser", "Die Seite kennt ein Haus mit einer Wandhöhe, auf Wunsch mit Staffelgeschoss. Garagen, Nebengebäude und Abstände zwischen Gebäuden rechnen Sie selbst nach.");
 
@@ -1168,7 +1239,7 @@ function fristKalender(frist, ort, stempel) { // ganztägiger Termin am Tag der 
 
 if (typeof module !== "undefined") {
   module.exports = { linkSchreibe, linkLies, adressTeile, adressTreffer, dxfSchreibe, de, stellplaetzeKfz, fahrradabstellplaetze, spielplatz, geschuetzt, abstandsflaeche, spielraum, feuerwehr,
-    flaeche, innen, liegtAuf, mitStrassen, freiraum, dxfText, dxfPolygone, lage, loesung, katasterUrl, katasterLies, strassenVorschlag, bplanUrl, bplanTreffer, starthaus, potenzial, umgebung, hoehenUrl, hoehenLies, unterlage, UNTERLAGEN, planWerte, vorAbsenden, versetzt, staffelStand, fristStand, fristKalender };
+    flaeche, innen, liegtAuf, mitStrassen, freiraum, dxfText, dxfPolygone, lage, loesung, katasterUrl, katasterLies, strassenVorschlag, bplanUrl, bplanTreffer, starthaus, potenzial, umgebung, hoehenUrl, hoehenLies, unterlage, UNTERLAGEN, planWerte, vorAbsenden, versetzt, staffelStand, baugrenzeStand, freiflaechen, nebenflaechen, fristStand, fristKalender };
 }
 </script>
 
@@ -1181,7 +1252,8 @@ const LEER = { vorhaben: null, planungsrecht: null, gebaeudeklasse: null, oberir
   wandhoehe: null, neigung: null, dachhoehe: null, staffelhoehe: null, grundstueck: [], haus: [],
   kataster: { gemarkung: "Münster", flur: null, nummer: null, kennzeichen: null, lage: null, stand: null }, umgebung: { flurstuecke: [], gebaeude: [] },
   bplan: null, // nach einem Abruf in Münster: { kraft: [...], verfahren: [...] }
-  annahmen: { ...ANNAHMEN }, festsetzung: { geschosse: null, grz: null, gfz: null }, nord: false, ursprung: null, baufenster: [], frist: null, // frist: aus dem Schreiben des Bauamts, "JJJJ-MM-TT"
+  annahmen: { ...ANNAHMEN }, festsetzung: { geschosse: null, grz: null, gfz: null, vorn: null, hinten: null }, nord: false, ursprung: null, baufenster: [], flaechen: { stellplaetze: null, neben: null, unter: null }, frist: null,
+  // festsetzung.vorn, .hinten: Baugrenzen in Metern ab der Straßengrenze; flaechen: was außer dem Haus bei der GRZ mitzählt, in Quadratmetern; frist: aus dem Schreiben des Bauamts, "JJJJ-MM-TT"
   ziel: null, baulast: false, antrag: { stellplaetze: null, raeder: null, spielflaeche: null }, paket: [] }; // ziel "pruefen": vor dem Absenden; antrag: Zahlen aus dem eigenen Lageplan; paket: [{ name, groesse, schutz }]; ursprung: Ecke im Netz des Katasters, für die DXF-Ausgabe
 const BEISPIEL = { ...LEER, vorhaben: "errichtung", planungsrecht: "34", gebaeudeklasse: 4, oberirdische_geschosse: 4,
   baugebiet: "allgemein", zweiter_rettungsweg: "feuerwehr", bruestung_anleiterstelle: 10.5, entfernung_verkehrsflaeche: 25, oepnv: "bus_10",
@@ -1277,7 +1349,11 @@ function umgebungJetzt() { // nur neu messen, wenn sich Grundstück, Auswahl ode
   if (schluessel !== umfeld.schluessel) umfeld = { schluessel, U: umgebung(punkte(a.grundstueck), u.flurstuecke.map((ring, i) => ({ ring, ...u.art.flurstuecke[i] })), u.gebaeude.map((ring, i) => ({ ring, ...u.art.gebaeude[i] })), u.hoehen || {}, u.wahl) };
   return umfeld.U;
 }
-const rahmenJetzt = () => { const U = umgebungJetzt(); return U && U.n && a.umgebung.messen ? { grundflaeche: U.grundflaeche.bis, hoehe: U.hoehe ? U.hoehe.bis : null } : null; };
+// „Was passt“ an den Nachbarn messen: a.umgebung.messen ist die Wahl des Büros, sonst null. Ohne Wahl gilt es, solange nichts aus dem Bebauungsplan eingetragen ist:
+// Dann sind die Nachbarn der beste Anhalt, den die Seite hat.
+const planEingetragen = () => { const fs = a.festsetzung || {}; return ["geschosse", "grz", "gfz", "vorn", "hinten"].some((k) => fs[k] > 0) || (a.baufenster || []).length > 0; };
+const misstUmgebung = () => a.umgebung.messen ?? !planEingetragen();
+const rahmenJetzt = () => { const U = umgebungJetzt(); return U && U.n && misstUmgebung() ? { grundflaeche: U.grundflaeche.bis, hoehe: U.hoehe ? U.hoehe.bis : null, vorn: U.vorn ? U.vorn.von : null, tiefe: U.tiefe ? U.tiefe.bis : null } : null; };
 async function holeHoehen() { // Höhen der Nachbarhäuser aus dem 3D-Modell des Landes: je Quadratkilometer eine Datei von rund 15 MB
   const u = a.umgebung, [x0, y0] = a.ursprung, eigene = new Set(u.art.gebaeude.map((g) => g.id));
   const kacheln = [...new Set(umgebungJetzt().nachbarn.flatMap((n) => n.haupt).map((i) => { const c = mittel(u.gebaeude[i]); return hoehenUrl(c[0] + x0, c[1] + y0); }))];
@@ -1360,13 +1436,16 @@ function zeichnePlan(L, geist, schau = null) {
         + `<text x="${px(neben[0])}" y="${py(neben[1]) + 3.5}" text-anchor="middle"${W.ok ? "" : ' class="fehl"'} pointer-events="none">${de(W.frei)}</text>`;
     }
   }
-  if (U && U.n > 1 && U.vorn) { // wo die Nachbarn zur Straße stehen und wie tief sie reichen: Linien quer übers eigene Grundstück, gleichlaufend zur Straße
-    for (const s of L.strassen) for (const [d, text] of [[U.vorn.mitte, "Flucht der Nachbarn"], [U.tiefe.bis, "Tiefe der Nachbarn"]]) {
+  const linien = [], fsP = a.festsetzung || {}; // Linien quer übers eigene Grundstück, gleichlaufend zur Straße: [Abstand, Text, Farbe, Strich]
+  if (U && U.n > 1 && U.vorn) linien.push([U.vorn.von, "Vorderste Flucht der Nachbarn", "blei", "2 4"], [U.tiefe.bis, "Tiefe der Nachbarn", "blei", "2 4"]); // der Rahmen, den „Was passt“ einhält, wenn an der Umgebung gemessen wird
+  if (!L.b.length) for (const [d, text] of [[fsP.vorn, "Baugrenze vorn"], [fsP.hinten, "Baugrenze hinten"]]) if (d > 0) linien.push([d, text, "akzent", "9 3 1.5 3 1.5 3"]);
+  if (linien.length) {
+    for (const s of L.strassen) for (const [d, text, farbe, strich] of linien) {
       const l = lang(s.a, s.b), m = mittel([s.a, s.b]), auf = (w) => [m[0] - s.n[0] * d + (s.b[0] - s.a[0]) / l * w, m[1] - s.n[1] * d + (s.b[1] - s.a[1]) / l * w];
       const drin = []; for (let w = -80; w <= 80; w += 0.5) if (innen(auf(w), L.g)) drin.push(w);
       if (!drin.length) continue;
       const von = auf(drin[0]), bis = auf(drin[drin.length - 1]), mitte = auf((drin[0] + drin[drin.length - 1]) / 2);
-      t += `<line x1="${px(von[0])}" y1="${py(von[1])}" x2="${px(bis[0])}" y2="${py(bis[1])}" stroke="var(--blei)" stroke-width="1" stroke-dasharray="2 4" pointer-events="none"/>`
+      t += `<line x1="${px(von[0])}" y1="${py(von[1])}" x2="${px(bis[0])}" y2="${py(bis[1])}" stroke="var(--${farbe})" stroke-width="1" stroke-dasharray="${strich}" pointer-events="none"/>`
         + `<text x="${px(mitte[0])}" y="${py(mitte[1]) - 4}" text-anchor="middle" class="blei" pointer-events="none">${text} ${de(d).slice(0, -1)} m</text>`;
     }
   }
@@ -1391,8 +1470,9 @@ function zeichnePlan(L, geist, schau = null) {
 const kachel = (label, stark, text) => `<div class="weg"><span class="label">${label}</span><strong>${stark}</strong><p>${text}</p></div>`;
 
 function planKachel(L) { // der Entwurf gegen die Werte aus dem Bebauungsplan; gezählt ist nur dieses Haus
-  const fg = Math.abs(flaeche(L.g)), fh = Math.abs(flaeche(L.h)), werte = planWerte(a, L), drueber = werte.some((w) => w.zuviel), teile = werte.map((w) => w.text + (w.zuviel ? " (darüber)" : ""));
-  return teile.length ? kachel("Bebauungsplan", drueber ? "Über den Werten aus dem Plan" : "Innerhalb der Werte aus dem Plan", `${teile.join(", ")}. Gezählt ist nur dieses Haus, ohne Stellplätze, Zufahrten und Nebenanlagen${staffelStand(L) ? `. ${staffelStand(L).text}` : "; jedes Geschoss zählt als Vollgeschoss."}`)
+  const fg = Math.abs(flaeche(L.g)), fh = Math.abs(flaeche(L.h)), werte = planWerte(a, L), bg = baugrenzeStand(a, L), drueber = werte.some((w) => w.zuviel && !w.weich) || (!!bg && bg.ok === false);
+  const teile = [...werte.filter((w) => w.text).map((w) => w.text + (w.zuviel ? (w.weich ? " (geschätzt darüber)" : " (darüber)") : "")), ...(bg && bg.ok !== null ? [bg.ok ? "Baugrenze eingehalten" : "Baugrenze überschritten"] : [])];
+  return teile.length ? kachel("Bebauungsplan", drueber ? "Über den Werten aus dem Plan" : "Innerhalb der Werte aus dem Plan", `${teile.join(", ")}. ${werte.some((w) => w.name === "GRZ mit Stellplätzen" && w.text) ? "Die übrigen Werte zählen nur dieses Haus" : "Gezählt ist nur dieses Haus, ohne Stellplätze, Zufahrten und Nebenanlagen"}${staffelStand(L) ? `. ${staffelStand(L).text}` : "; jedes Geschoss zählt als Vollgeschoss."}`)
     : kachel("Überbaut", `${Math.round(fh)} von ${Math.round(fg)} m²`, `Das Haus bedeckt ${Math.round(100 * fh / fg)} % des Grundstücks. Tragen Sie oben die Werte aus dem Bebauungsplan ein, dann vergleicht die Seite.`);
 }
 const ampel = (status, text) => { $("lage").dataset.status = status; $("ampel").textContent = text; $("legende").hidden = status !== "ok" && status !== "fehl"; };
@@ -1467,6 +1547,7 @@ function zeichneAbsenden(liste) { // die Liste vor dem Absenden: erst was nicht 
   const frage = (p) => !p.frage ? "" : p.frage === "haus" ? `<div class="knoepfe"><button type="button" class="haupt" data-dxf>Lageplan aus CAD laden (DXF)</button><button type="button" data-starthaus>Haus von Hand setzen</button></div>`
     : p.frage === "paket" ? `<div class="knoepfe"><button type="button" class="haupt" data-paket>PDFs auswählen</button></div>`
     : p.frage === "baugrenze" ? `<div class="knoepfe"><button type="button" class="link" data-baugrenzeweg>Baugrenze entfernen</button></div>`
+    : p.frage === "flaechen" ? `<div class="nachfrage drei">${[["stellplaetze", "Stellplätze, Zufahrten m²"], ["neben", "Garagen, Nebenanlagen m²"], ["unter", "Tiefgarage neben dem Haus m²"]].map(([k, name]) => `<label>${name}<input type="number" min="0" step="1" data-p="flaechen.${k}" value="${wert(`flaechen.${k}`)}"></label>`).join("")}</div>`
     : p.frage === "wohnungen" ? `<div class="knoepfe"><button type="button" data-gruppe="3">Wohnungen eintragen</button></div>`
     : p.frage === "vorhaben" || p.frage === "oepnv" ? `<label class="ist">${{ vorhaben: "Vorhaben", oepnv: "Bus und Bahn" }[p.frage]}<select data-p="${p.frage}">${$("angaben").querySelector(`[data-p="${p.frage}"]`).innerHTML}</select></label>`
     : `<label class="ist">Im Lageplan<input type="number" min="0" step="1" data-p="${p.frage}" value="${wert(p.frage)}"></label>`;
@@ -1709,7 +1790,7 @@ async function uebernimm(ich, vorweg = "") { // ein Flurstück aus dem Kataster:
   a.grundstueck = ich.ring.map(um).map(([x, y], i) => ({ x, y, strasse: breiten[i] }));
   a.umgebung = { flurstuecke: nachbarn.map((o) => o.ring.map(um)), gebaeude: gebaeude.map((o) => o.ring.map(um)), // art: was das Kataster zu jedem Umriss sagt, in derselben Reihenfolge
     art: { flurstuecke: nachbarn.map((o) => ({ nutzung: o.nutzung, lage: o.lage })), gebaeude: gebaeude.map((o) => ({ art: o.felder.gebnutzbez || "", funktion: o.felder.funktion || "", id: (o.felder.oid || "").slice(0, 16) })) },
-    hoehen: null, wahl: {}, messen: !!a.bplan && !a.bplan.kraft.length }; // ohne Bebauungsplan misst „Was passt“ gleich an den Nachbarn
+    hoehen: null, wahl: {}, messen: null }; // messen: null, bis das Büro den Haken selbst setzt
   a.haus = []; // kein Haus vorgeben: Die Stufen zeigen, was passt
   a.festsetzung = structuredClone(LEER.festsetzung); // anderes Grundstück, anderer Plan
   a.nord = true; // Kataster-Koordinaten: Norden ist oben
@@ -1806,7 +1887,7 @@ function zeichneBlatt() {
   const pruefen = a.ziel === "pruefen", liste = pruefen && L ? vorAbsenden(a, a.paket) : [], hakt = (p) => p.status === "fehl" || p.status === "offen";
   const stelle = !L ? 0 : pruefen ? (liste.some((p) => hakt(p) && (p.kennung === "abstand" || p.kennung === "plan")) ? 1 : liste.some(hakt) ? 2 : 3)
     : !L.h.length ? 1 : L.fehlt.length || !L.auf || L.waende.some((W) => !W.ok) ? 2 : 3;
-  const ueberPlan = !!L && L.h.length > 0 && planWerte(a, L).some((w) => w.zuviel);
+  const ueberPlan = !!L && L.h.length > 0 && (planWerte(a, L).some((w) => w.zuviel && !w.weich) || (baugrenzeStand(a, L) || {}).ok === false);
   document.querySelectorAll("[data-ziel]").forEach((b) => b.setAttribute("aria-pressed", String(b.dataset.ziel === (a.ziel || ""))));
   $("weg").hidden = !L;
   $("absenden").hidden = !liste.length;
@@ -1826,7 +1907,7 @@ function zeichneBlatt() {
   $("blatt").toggleAttribute("data-urteil", !!L && !L.fehlt.length);
   if (!L || L.fehlt.length) fehlt.push(`Lageplan und Abstände (${L ? L.fehlt.join(", ") : "Grundstück"})`);
   const U = L ? umgebungJetzt() : null, rahmen = rahmenJetzt();
-  const schluessel = JSON.stringify([a.grundstueck, a.annahmen, a.baugebiet, a.oepnv, a.festsetzung, rahmen]); // nur neu rechnen, wenn sich das Grundstück ändert, nicht beim Ziehen des Hauses
+  const schluessel = JSON.stringify([a.grundstueck, a.annahmen, a.baugebiet, a.oepnv, a.festsetzung, rahmen, a.baufenster]); // nur neu rechnen, wenn sich das Grundstück ändert, nicht beim Ziehen des Hauses
   if (schluessel !== passt.schluessel && !(zug && zug.art === "g")) passt = { schluessel, P: potenzial({ ...a, rahmen }), wahl: null };
   const P = passt.P, moeglich = P ? P.zeilen.filter((r) => r.haus && !r.ueber && !r.hoch) : [];
   const meiste = Math.max(0, ...moeglich.map((r) => r.wohnungen)), beste = moeglich.find((r) => r.wohnungen === meiste) || null;
@@ -1836,16 +1917,22 @@ function zeichneBlatt() {
   $("passt").hidden = !P || pruefen;
   if (P) {
     const mz = (n, ein, mehr) => `${n} ${n === 1 ? ein : mehr}`, reihe = (v) => (v.length > 1 ? `${v.slice(0, -1).join(", ")} und ${v[v.length - 1]} Geschosse` : mz(v[0], "Geschoss", "Geschosse"));
+    const fgrund = Math.abs(flaeche(L.g)); // Flächenbilanz je Stufe: was Stellplätze, Fahrradplätze und Spielfläche neben dem Haus brauchen
+    const zurBilanz = (r) => { const fl = r.frei, braucht = Math.round(fl.stellplaetze + fl.raeder + fl.spiel), neben = Math.round(fgrund - r.grundflaeche);
+      return !r.wohnungen ? "" : fl.passt ? ` Das braucht rund ${braucht} m² der ${neben} m² neben dem Haus${fl.zulaessig ? `; mit Stellplätzen liegt die GRZ bei ${de(fl.grz2)}, zulässig sind ${de(fl.zulaessig)}` : ""}.`
+        : ` ${fl.grund === "grz" ? `Mit Stellplätzen läge die GRZ bei ${de(fl.grz2)}, zulässig sind ${de(fl.zulaessig)}` : `Das braucht rund ${braucht} m², neben dem Haus sind nur ${neben} m² frei`}. Mit allen Stellplätzen auf dem Grundstück gehen ${mz(r.oberirdisch, "Wohnung", "Wohnungen")}; mehr nur mit Tiefgarage unter dem Haus oder Ablöse.`; };
     const stufe = (r) => { const offen = r.nr === passt.wahl, grenze = { grz: " Die GRZ begrenzt hier die Grundfläche.", gfz: " Die GFZ begrenzt hier die Geschossfläche.", umgebung: " Die größte Grundfläche der Nachbarn begrenzt hier das Haus." }[r.grenze] || "";
       return `<div class="stufe${r === beste ? " beste" : ""}${offen ? " gewaehlt" : ""}" data-zeile="${r.nr}" tabindex="0" role="button" aria-expanded="${offen}"><strong>${stufenname(r)}</strong>`
-        + `<span class="we">${mz(r.wohnungen, "Wohnung", "Wohnungen")}</span><div class="balken"><i style="width:${meiste ? 100 * r.wohnungen / meiste : 0}%"></i></div>`
-        + (offen ? `<p class="klein">Haus ${de(r.breite)} × ${de(r.haustiefe)} m, ${de(r.tiefe)} m Abstand zur Grenze, ${r.wohnflaeche} m² Wohnfläche.${grenze}${r.staffel ? ` Das Staffelgeschoss springt rundum ${de(r.staffel.zurueck)} m zurück und zählt so nicht als Vollgeschoss.` : ""} Dazu ${mz(r.kfz, "Stellplatz", "Stellplätze")}, ${mz(r.raeder ?? 0, "Fahrradplatz", "Fahrradplätze")}${r.spiel ? ` und ${r.spiel.flaeche} m² Spielfläche` : ""}.</p>`
+        + `<span class="we">${mz(r.wohnungen, "Wohnung", "Wohnungen")}${r.oberirdisch != null ? `<small title="Mit allen Stellplätzen auf dem Grundstück">${r.oberirdisch} ohne Tiefgarage</small>` : ""}</span><div class="balken"><i style="width:${meiste ? 100 * r.wohnungen / meiste : 0}%"></i></div>`
+        + (offen ? `<p class="klein">Haus ${de(r.breite)} × ${de(r.haustiefe)} m, ${de(r.tiefe)} m Abstand zur Grenze, ${r.wohnflaeche} m² Wohnfläche.${grenze}${r.staffel ? ` Das Staffelgeschoss springt rundum ${de(r.staffel.zurueck)} m zurück und zählt so nicht als Vollgeschoss.` : ""} Dazu ${mz(r.kfz, "Stellplatz", "Stellplätze")}, ${mz(r.raeder ?? 0, "Fahrradplatz", "Fahrradplätze")}${r.spiel ? ` und ${r.spiel.flaeche} m² Spielfläche` : ""}.${zurBilanz(r)}</p>`
+          + (r.wohnungen ? `<div class="bilanz"${r.frei.passt ? "" : " data-eng"}>${[["haus", r.grundflaeche], ["st", r.frei.stellplaetze], ["rad", r.frei.raeder], ["spiel", r.frei.spiel]].map(([k, x]) => `<i class="${k}" style="width:${100 * x / fgrund}%"></i>`).join("")}</div>`
+            + `<p class="schluessel"><span><i class="haus"></i>Haus ${r.grundflaeche} m²</span><span><i class="st"></i>Stellplätze ${Math.round(r.frei.stellplaetze)}</span><span><i class="rad"></i>Räder ${Math.round(r.frei.raeder)}</span><span><i class="spiel"></i>Spielfläche ${r.frei.spiel}</span><span>frei ${Math.round(r.frei.rest)} m²</span></p>` : "")
           + `<button type="button" class="haupt" data-nimm="${r.nr}">Dieses Haus in den Plan</button>` : "") + `</div>`; };
     const drueber = P.zeilen.filter((r) => r.ueber).map((r) => r.geschosse), ohne = P.zeilen.filter((r) => !r.haus && !r.ueber && !r.hoch && !r.staffel).map((r) => r.geschosse);
     const hoeher = P.zeilen.filter((r) => r.hoch && !r.ueber && !r.staffel).map((r) => r.geschosse);
     $("spiel").hidden = moeglich.length < 2;
     $("passtzeilen").innerHTML = moeglich.map(stufe).join("")
-      + (ohne.length ? `<p class="klein" style="margin-top:8px">${reihe(ohne)}: Der nötige Abstand zur Grenze lässt kein Haus von mindestens 4 m Breite übrig.</p>` : "")
+      + (ohne.length ? `<p class="klein" style="margin-top:8px">${reihe(ohne)}: ${P.baufenster ? "Abstand zur Grenze und Baufenster lassen" : "Der nötige Abstand zur Grenze lässt"} kein Haus von mindestens 4 m Breite übrig.</p>` : "")
       + (drueber.length ? `<p class="klein" style="margin-top:8px">${reihe(drueber)}: mehr, als der Bebauungsplan nach Ihrer Angabe zulässt.</p>` : "")
       + (hoeher.length ? `<p class="klein" style="margin-top:8px">${reihe(hoeher)}: höher als das höchste gezählte Nachbarhaus (${de(P.rahmen.hoehe).slice(0, -1)} m).</p>` : "")
       + (L && !L.h.length ? `<p class="klein" style="margin-top:8px">Lieber selbst zeichnen? <button type="button" class="link" data-starthaus>Ein kleines Haus setzen</button> und im Plan zurechtziehen.</p>` : "");
@@ -1853,15 +1940,19 @@ function zeichneBlatt() {
     $("passttext").textContent = `Je Geschosszahl sucht die Seite das größte rechteckige Haus, das rundum den nötigen Abstand zur Grenze hält. Annahmen: Flachdach, ${de(an.geschosshoehe)} m je Geschoss, `
       + `Haus höchstens ${de(an.haustiefe)} m tief, ${an.anteil} % der Geschossfläche sind Wohnfläche, eine Wohnung hat ${an.wohnung} m², ${{ allgemein: "Wohn-, Misch- oder sonstiges Gebiet", gewerbe_industrie: "Gewerbe- oder Industriegebiet", kern: "Kerngebiet" }[P.baugebiet]}`
       + `${a.baugebiet ? "" : " (angenommen)"}. Unter „Angaben“ ändern Sie diese Werte. Stellplätze ${a.oepnv ? OEPNV_TEXT[a.oepnv] : "ohne Abschlag für Bus und Bahn"}, Fahrradplätze und Spielfläche folgen den Münsteraner Satzungen; `
-      + `ihre Fläche auf dem Grundstück ist nicht abgezogen. Die Erleichterung für kleine Wohngebäude (pauschal 3 m Abstand) ist nicht eingerechnet.`
-      + (P.rahmen.grundflaeche ? ` An der Umgebung gemessen: Die Grundfläche bleibt unter der größten der gezählten Nachbarn (${P.rahmen.grundflaeche} m²)${P.rahmen.hoehe ? `, die Höhe unter dem höchsten Nachbarhaus (${de(P.rahmen.hoehe).slice(0, -1)} m bis zum höchsten Punkt des Dachs)` : ""}. Das ist ein Anhalt, keine Zusage.` : "")
+      + `für ihre Fläche rechnet die Seite mit ${de(an.stellplatz).replace(/,00$/, "")} m² je Stellplatz samt Zufahrt (Faustwert) und 2,2 m² je Fahrradplatz. Das Haus wird dafür nicht kleiner; reicht der Platz nicht, nennt die Stufe, wie viele Wohnungen ohne Tiefgarage gehen.`
+      + (P.festsetzung.grz ? (P.altplan ? ` Der Bebauungsplan ist von ${P.altplan}; die heutige Regel, nach der Stellplätze bei der GRZ mitzählen, legt die Seite deshalb nicht an.` : ` Bei der GRZ zählen Stellplätze und Fahrradplätze mit; der Plan lässt dafür die Hälfte mehr zu, höchstens 0,8.`) : "")
+      + ` Die Erleichterung für kleine Wohngebäude (pauschal 3 m Abstand) ist nicht eingerechnet.`
+      + (P.baufenster === "datei" ? " Das Haus bleibt innerhalb der Baugrenze aus Ihrer Datei." : P.festsetzung.vorn || P.festsetzung.hinten ? " Das Haus bleibt zwischen den Baugrenzen aus Ihren Angaben, gemessen ab der Straßengrenze." : "")
+      + (P.rahmen.grundflaeche ? ` An der Umgebung gemessen: Die Grundfläche bleibt unter der größten der gezählten Nachbarn (${P.rahmen.grundflaeche} m²)${P.rahmen.hoehe ? `, die Höhe unter dem höchsten Nachbarhaus (${de(P.rahmen.hoehe).slice(0, -1)} m bis zum höchsten Punkt des Dachs)` : ""}`
+        + (P.baufenster && (P.rahmen.vorn || P.rahmen.tiefe) ? `; das Haus steht nicht näher an der Straße als der vorderste Nachbar (${de(P.rahmen.vorn || 0).slice(0, -1)} m) und reicht nicht tiefer als der tiefste (${de(P.rahmen.tiefe || 0).slice(0, -1)} m ab der Straße)` : "") + `. Das ist ein Anhalt, keine Zusage.` : "")
       + (P.zeilen.some((r) => r.staffel) ? ` Die Stufe mit Staffelgeschoss setzt über die Vollgeschosse aus dem Plan ein Geschoss, das rundum so weit zurückspringt, dass es höchstens drei Viertel der Fläche darunter hat. Dann zählt es nach der Bauordnung nicht als Vollgeschoss und bei der GFZ nicht mit. Setzt Ihr Plan eine Höhe fest oder rechnet er Aufenthaltsräume in anderen Geschossen an, gilt das nicht.` : "")
       + (fs.geschosse || fs.grz || fs.gfz ? ` Vollgeschosse, GRZ und GFZ stammen von Ihnen. Gezählt ist nur das Hauptgebäude auf der ganzen Fläche des Flurstücks, jedes Geschoss als Vollgeschoss. Bei älteren Plänen gilt die Baunutzungsverordnung von damals; die Seite rechnet nach der heutigen.` : "");
   }
 
   $("grund").hidden = !L;
   if (L) { // Grundstück, Obergrenze und die Werte aus dem Bebauungsplan
-    const k = a.kataster, fs = a.festsetzung || {}, mitPlan = fs.geschosse > 0 || fs.grz > 0 || fs.gfz > 0, datum = (d) => d.split("-").reverse().join(".");
+    const k = a.kataster, fs = a.festsetzung || {}, mitGrenze = !!(P && P.baufenster && (P.baufenster === "datei" || P.festsetzung.vorn || P.festsetzung.hinten)), mitPlan = fs.geschosse > 0 || fs.grz > 0 || fs.gfz > 0 || mitGrenze, datum = (d) => d.split("-").reverse().join(".");
     const plaene = a.bplan ? [...new Set(a.bplan.kraft.map((b) => b.nr))] : [];
     const planlink = a.bplan ? a.bplan.kraft.filter((b, i, alle) => b.url && alle.findIndex((c) => c.nr === b.nr) === i).map((b) => `<a href="${esc(b.url)}" target="_blank" rel="noopener">Plan ansehen</a>`).join(", ") : "";
     const feld = (p, name, step, tipp) => `<label title="${tipp}">${name}<input type="number" min="0" step="${step}" data-p="festsetzung.${p}" value="${fs[p] ?? ""}"></label>`;
@@ -1872,20 +1963,21 @@ function zeichneBlatt() {
       + `<div class="kacheln"><div><b>${Math.round(Math.abs(flaeche(L.g)))}<small>m²</small></b><span class="label">Grundstück</span></div>`
       + (beste && !pruefen ? `<div class="akzent"><b>${beste.wohnungen}</b><span class="label">Wohnungen höchstens</span></div><div><b>${beste.wohnflaeche}<small>m²</small></b><span class="label">Wohnfläche höchstens</span></div>` : "") + `</div>`
       + (pruefen ? "" : `<p class="klein">${!beste ? "Mit diesen Vorgaben findet die Seite kein Haus von mindestens 4 m Breite."
-        : mitPlan || rahmen ? `Gerechnet mit den Abständen zur Grenze${mitPlan ? `${rahmen ? "," : " und"} Ihren Werten aus dem Bebauungsplan` : ""}${rahmen ? " und dem, was die Nachbarn gebaut haben" : ""}, ${bei}. Baugrenzen, Bauweise und weitere Festsetzungen prüft die Seite nicht.`
-        : `„Höchstens“ heißt: so viel, wie die Abstände zur Grenze hergeben, ${bei}. Der Bebauungsplan erlaubt oft weniger. Tragen Sie seine Werte ein, dann rechnet die Seite damit.`}</p>`)
+        : mitPlan || rahmen ? `Gerechnet mit den Abständen zur Grenze${mitPlan ? `${rahmen ? "," : " und"} Ihren Werten aus dem Bebauungsplan` : ""}${rahmen ? " und dem, was die Nachbarn gebaut haben" : ""}, ${bei}. ${mitGrenze ? "Bauweise" : "Baugrenzen, Bauweise"} und weitere Festsetzungen prüft die Seite nicht.`
+        : `„Höchstens“ heißt: so viel, wie die Abstände zur Grenze hergeben, ${bei}. Der Bebauungsplan erlaubt oft weniger. Tragen Sie seine Werte ein, dann rechnet die Seite damit.`}${beste && beste.oberirdisch != null ? ` Mit allen Stellplätzen auf dem Grundstück gehen ${beste.oberirdisch === 1 ? "eine Wohnung" : `${beste.oberirdisch} Wohnungen`}; die Stufe unten sagt, warum.` : ""}</p>`)
       + `<div class="plan"><span class="label">Aus dem Bebauungsplan${plaene.length ? ` ${esc(plaene.join(", "))}` : ""}${planlink ? ` · ${planlink}` : ""}</span>`
-      + `<div class="nachfrage drei">${feld("geschosse", "Vollgeschosse", 1, "Zahl der Vollgeschosse, im Plan oft als römische Zahl")}${feld("grz", "GRZ", 0.05, "Grundflächenzahl, zum Beispiel 0,4")}${feld("gfz", "GFZ", 0.05, "Geschossflächenzahl, zum Beispiel 0,8")}</div>`
-      + `<p class="klein">Die drei Werte stehen in der Nutzungsschablone des Plans. Leer lassen, was der Plan nicht festsetzt.</p></div>`
+      + `<div class="nachfrage drei">${feld("geschosse", "Vollgeschosse", 1, "Zahl der Vollgeschosse, im Plan oft als römische Zahl")}${feld("grz", "GRZ", 0.05, "Grundflächenzahl, zum Beispiel 0,4")}${feld("gfz", "GFZ", 0.05, "Geschossflächenzahl, zum Beispiel 0,8")}`
+        + `${feld("vorn", "Baugrenze vorn, m", 0.1, "So weit liegt die vordere Baugrenze hinter der Straßengrenze, im Plan gemessen")}${feld("hinten", "Baugrenze hinten, m", 0.1, "So weit liegt die hintere Baugrenze hinter der Straßengrenze, im Plan gemessen")}</div>`
+      + `<p class="klein">Vollgeschosse, GRZ und GFZ stehen in der Nutzungsschablone des Plans. Die Baugrenzen messen Sie im Plan ab der Straßengrenze${(a.baufenster || []).length ? "; hier gilt die Linie aus Ihrer Datei" : ""}. Leer lassen, was der Plan nicht festsetzt.</p></div>`
       + (U ? `<div class="plan"><span class="label">Umgebung · ${U.n} ${U.n === 1 ? "Nachbar" : "Nachbarn"} gezählt</span>`
         + (U.n ? `<div class="werte">${spanne("Grundfläche", U.grundflaeche, "m²", (x) => x, "Je Flurstück das größte Hauptgebäude, kleinstes bis größtes")}${spanne("GRZ", U.grz, "", de, "Alle Hauptgebäude eines Flurstücks geteilt durch seine Fläche; ohne Garagen, Zufahrten und Nebenanlagen")}`
           + `${spanne("Abstand zur Straße", U.vorn, "m", zehntel, "Von der Straßengrenze bis zur nächsten Hausecke")}${spanne("Tiefe ab Straße", U.tiefe, "m", zehntel, "Von der Straßengrenze bis zur hintersten Hausecke")}`
           + (U.hoehe ? spanne("Höhe", U.hoehe, "m", zehntel, "Bis zum höchsten Punkt des Dachs, aus dem 3D-Gebäudemodell des Landes") : `<div><span class="label">Höhe</span>${hoehenStand === "laedt" ? `<span class="klein">lädt …</span>` : a.umgebung.hoehen ? `<span class="klein">nicht im 3D-Modell</span>` : `<button type="button" class="link" data-hoehen title="Aus dem 3D-Gebäudemodell des Landes NRW; je Quadratkilometer eine Datei von rund 15 MB">Höhen holen</button>`}</div>`) + `</div>`
           + (hoehenStand && hoehenStand !== "laedt" ? `<p class="klein">${esc(hoehenStand)}</p>` : "")
-          + (pruefen ? "" : `<label class="haken"><input type="checkbox" data-p="umgebung.messen"${a.umgebung.messen ? " checked" : ""}>„Was passt“ an der Umgebung messen</label>`) : "")
+          + (pruefen ? "" : `<label class="haken"><input type="checkbox" data-p="umgebung.messen"${misstUmgebung() ? " checked" : ""}>„Was passt“ an der Umgebung messen</label>`) : "")
         + `<p class="klein">Gemessen im Kataster, ohne Garagen und Nebengebäude. Gezählt sind bebaute Wohngrundstücke bis 20 m um Ihres; ihre Häuser sind im Plan dunkler.`
           + (U.grosse.length ? ` ${U.grosse.length === 1 ? "Ein deutlich größeres Haus" : `${U.grosse.length} deutlich größere Häuser`} (${U.grosse.map((i) => `${U.nachbarn[i].grundflaeche} m²`).join(", ")}) ${U.grosse.length === 1 ? "zählt" : "zählen"} zunächst nicht mit.` : "")
-          + ` Ein Klick auf ein Grundstück im Plan nimmt es heraus oder dazu. Ob sich ein Haus einfügt, beurteilt das Bauamt.</p></div>` : ""));
+          + ` Ein Klick auf ein Grundstück im Plan nimmt es heraus oder dazu.${a.umgebung.messen == null ? " Der Haken ist gesetzt, solange Sie nichts aus dem Bebauungsplan eingetragen haben." : ""} Ob sich ein Haus einfügt, beurteilt das Bauamt.</p></div>` : ""));
   }
 
   const wohnungen = a.wohnungen.filter((w) => Number.isInteger(w.anzahl) && w.anzahl > 0 && istZahl(w.wohnflaeche));
@@ -1902,6 +1994,10 @@ function zeichneBlatt() {
     if (!a.vorhaben) fehlt.push("Spielplatz (Art des Vorhabens)");
     else if (a.vorhaben === "errichtung" && anzahlWohnungen(wohnungen) === 3) soll.push(zeile("Klären", null, "Spielplatz für Kleinkinder", "Die Bauordnung verlangt einen Spielplatz erst ab vier Wohnungen, die Münsteraner Satzung von 1971 nennt schon mehr als zwei. Bitte mit dem Bauamt klären.", quelleSpiel));
     const spiel = a.vorhaben ? spielplatz(wohnungen, a.einraumwohnungen || 0, a.vorhaben) : null;
+    if (a.oepnv && L && L.h.length) { const kfz = stellplaetzeKfz(wohnungen, a.oepnv).mit_abschlag, st = a.annahmen && a.annahmen.stellplatz > 0 ? a.annahmen.stellplatz : ANNAHMEN.stellplatz, fg = Math.abs(flaeche(L.g)), fh = Math.abs(flaeche(L.h));
+      const fl = freiflaechen(fg, fh, kfz, rad || 0, spiel ? spiel.flaeche : 0, st, null);
+      soll.push(zeile(Math.round(fl.stellplaetze + fl.raeder + fl.spiel), "m²", "Fläche für Stellplätze, Fahrräder und Spielfläche", `${kfz} ${kfz === 1 ? "Stellplatz" : "Stellplätze"} je ${de(st).replace(/,00$/, "")} m² samt Zufahrt${rad ? `, ${rad} Fahrradplätze je 2,2 m²` : ""}${spiel ? `, ${spiel.flaeche} m² Spielfläche` : ""}. `
+        + `Neben dem Haus sind ${Math.round(fg - fh)} m² frei${fl.passt ? "" : "; das reicht nicht"}. Ein Überschlag: Wie die Flächen liegen, zeigt erst Ihr Lageplan.`, "Faustwert für den Stellplatz; Fahrradplatz nach den Maßen der Stellplatzsatzung Münster")); }
     if (spiel) soll.push(zeile(spiel.flaeche, "m²", "Spielfläche für Kleinkinder", `Fünf Quadratmeter je Wohnung, mindestens 25. Dazu ${spiel.spielgeraete} ${spiel.spielgeraete === 1 ? "Spielgerät" : "Spielgeräte"} und ${spiel.sitzgelegenheiten} Sitzgelegenheiten. Auf dem Grundstück oder in unmittelbarer Nähe, besonnt, einsehbar, höchstens 100 m entfernt, barrierefrei erreichbar. Entfällt, wenn nebenan ein nutzbarer Spielplatz liegt oder entsteht.`, quelleSpiel));
   }
 
@@ -1929,7 +2025,7 @@ function zeichneBlatt() {
   if (a.bplan) { // nur nach einem Abruf in Münster
     const quelle = "Stadt Münster, Bebauungspläne (Datenlizenz Deutschland Namensnennung 2.0)", datum = (d) => d.split("-").reverse().join(".");
     const lage = (b) => `Das Grundstück liegt ${b.ganz ? "ganz" : "zum Teil"} im Plangebiet.`, link = (b) => b.url ? ` <a href="${esc(b.url)}" target="_blank" rel="noopener">Plan bei der Stadt ansehen</a>` : "";
-    for (const b of a.bplan.kraft) frueh.push(zeile("B-Plan", null, `Bebauungsplan ${esc(b.nr)}: ${esc(b.name)}`, `Rechtskräftig seit ${datum(b.datum)}. ${lage(b)} Baugrenzen, Baulinien und die übrigen Festsetzungen stehen im Plan; diese Seite liest ihn nicht. Die Baugrenze prüft sie nur, wenn sie in Ihrer DXF-Datei liegt.${link(b)}`, quelle));
+    for (const b of a.bplan.kraft) frueh.push(zeile("B-Plan", null, `Bebauungsplan ${esc(b.nr)}: ${esc(b.name)}`, `Rechtskräftig seit ${datum(b.datum)}. ${lage(b)} Baugrenzen, Baulinien und die übrigen Festsetzungen stehen im Plan; diese Seite liest ihn nicht. Die Baugrenze prüft sie nur, wenn Sie sie oben eintragen oder sie in Ihrer DXF-Datei liegt.${link(b)}`, quelle));
     for (const b of a.bplan.verfahren) frueh.push(zeile("In Arbeit", null, `Bebauungsplan ${esc(b.nr)} im Verfahren: ${esc(b.name)}`, `${lage(b)} Hier wird ein Plan aufgestellt oder geändert. Bitte früh bei der Stadt nachfragen, was das für Ihr Vorhaben heißt.${link(b)}`, quelle));
     if (!a.bplan.kraft.length) frueh.push(zeile("B-Plan", null, "Kein rechtskräftiger Bebauungsplan gefunden", "Der Dienst der Stadt zeigt für dieses Flurstück keinen. Verbindlich ist nur die Auskunft der Stadt.", quelle));
   }
