@@ -1007,15 +1007,33 @@ function potenzial(a, hoechstens = 6) {
     if (d < vorn + (vorn ? 0.02 : 0) || d > hinten - 0.02 || (bf && !(innen(p, bf) && Math.min(...nachbarn(bf).map(([q0, q1]) => abstandStrecke(p, q0, q1))) >= rand2))) r.m[j * r.ns + i] = -1;
   }
   const noetig = (wandhoehe, n) => abstandsflaeche({ breite: 10, wandhoehe, abstand_grenze: 0, giebel: false, dach: { neigung_grad: 0, hoehe: 0, gauben_laenge: 0 }, vorbauten: [] }, 3, n, baugebiet).tiefe;
+  const kr = nachbarn(rand), genau = (h, tiefe) => { // ohne Raster gemessen: auf dem Grundstück, Ecken im Baufenster, und jeder Punkt des Hauses hält tiefe zum Rand, auch über Eck
+    if (!liegtAuf(h, g) || (bf && !liegtAuf(h, bf))) return false;
+    if (strassen.length && (vorn > 0 || hinten < Infinity) && h.some((p) => { const d = strassenAbstand(p, strassen); return d < vorn + (vorn ? 0.005 : 0) || d > hinten - 0.005; })) return false;
+    const kh = nachbarn(h);
+    return Math.min(...h.flatMap((p) => kr.map(([c, d]) => abstandStrecke(p, c, d))), ...rand.flatMap((p) => kh.map(([c, d]) => abstandStrecke(p, c, d)))) >= tiefe + 0.005;
+  };
   const stufe = (n, wandhoehe, tiefe, staffel = null) => { // größtes Rechteck, das rundum tiefe hält, auf die Deckel aus Plan und Umgebung gekürzt; staffel: Rücksprung des Geschosses darüber oder eine Funktion, die ihn aus den Maßen bestimmt
     const fenster = raster[0].m.reduce((sum, x) => sum + (x >= tiefe ? 1 : 0), 0) * z * z;
     let haus = null, mass = [0, 0];
+    const schliff = (h, m) => { // Feinschliff: Das Raster lässt an jeder Seite bis zu einer Zelle und der Zugabe Luft. Jede Seite rückt nach außen, solange das Haus ohne Raster gemessen passt; die Haustiefe bleibt gedeckelt
+      const o = h[0], u = [(h[1][0] - o[0]) / m[0], (h[1][1] - o[1]) / m[0]], v = [(h[3][0] - o[0]) / m[1], (h[3][1] - o[1]) / m[1]], e = [0, m[0], 0, m[1]];
+      const eck = (s, t) => [rund(o[0] + s * u[0] + t * v[0]), rund(o[1] + s * u[1] + t * v[1])], bau = (x) => [eck(x[0], x[2]), eck(x[1], x[2]), eck(x[1], x[3]), eck(x[0], x[3])];
+      for (let runde = 0; runde < 2; runde++) for (const k of [1, 0, 3, 2]) {
+        const mit = (d) => e.map((x, i) => (i === k ? x + (k % 2 ? d : -d) : x)), weit = k > 1 ? Math.min(3, an.haustiefe - (e[3] - e[2])) : 3;
+        let lo = 0, hi = weit;
+        if (weit > 0.01 && genau(bau(mit(weit)), tiefe)) lo = weit;
+        else for (let i = 0; i < 9 && hi > 0.01; i++) { const d = (lo + hi) / 2; if (genau(bau(mit(d)), tiefe)) lo = d; else hi = d; }
+        e[k] += (k % 2 ? 1 : -1) * Math.floor(lo * 100) / 100;
+      }
+      return genau(bau(e), tiefe) ? [bau(e), [e[1] - e[0], e[3] - e[2]]] : [h, m];
+    };
     for (const r of raster) for (const quer of [false, true]) { // quer: Raster gespiegelt, damit die Haustiefe in beiden Richtungen liegen kann
       const b = groesstesRechteck((i, j) => r.m[quer ? i * r.ns + j : j * r.ns + i] >= tiefe + zugabe, quer ? r.nt : r.ns, quer ? r.ns : r.nt, Math.floor(an.haustiefe / z) + 1);
-      if (!b || (b[1] - b[0]) * (b[3] - b[2]) * z * z <= mass[0] * mass[1] + 1e-9) continue;
+      if (!b || (b[1] - b[0]) * (b[3] - b[2]) * z * z <= 0.8 * mass[0] * mass[1]) continue; // weit kleiner als das beste bisher: Das holt der Feinschliff nicht auf
       const ecke = (i, j) => (quer ? r.ort(j, i) : r.ort(i, j)).map(rund);
-      mass = [(b[1] - b[0]) * z, (b[3] - b[2]) * z];
-      haus = [ecke(b[0], b[2]), ecke(b[1], b[2]), ecke(b[1], b[3]), ecke(b[0], b[3])];
+      const [h, m] = schliff([ecke(b[0], b[2]), ecke(b[1], b[2]), ecke(b[1], b[3]), ecke(b[0], b[3])], [(b[1] - b[0]) * z, (b[3] - b[2]) * z]);
+      if (m[0] * m[1] > mass[0] * mass[1] + 1e-9) { haus = h; mass = m; }
     }
     if (Math.min(...mass) < 4) haus = null; // schmaler als 4 m ist kein Haus
     let grenze = null; // was die Grundfläche unter das größte Haus drückt: "umgebung", "grz" oder "gfz"
