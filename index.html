@@ -684,6 +684,7 @@ const mittel = (v) => [v.reduce((s, p) => s + p[0], 0) / v.length, v.reduce((s, 
 const lang = (a, b) => Math.sqrt((b[0] - a[0]) ** 2 + (b[1] - a[1]) ** 2);
 
 // Offenes Kataster des Landes NRW (ALKIS vereinfacht, Datenlizenz Deutschland Zero). Koordinaten in Metern (ETRS89/UTM32).
+const GEMEINDE = "05515000"; // Gemeindeschlüssel der Stadt Münster; Flurstücke und Gebäude tragen ihn
 const KATASTER = "https://www.wfs.nrw.de/geobasis/wfs_nw_alkis_vereinfacht", KATASTER_NS = "http://repository.gdi-de.org/schemas/adv/produkt/alkis-vereinfacht/2.0";
 function katasterUrl(typ, wo) { // wo: { gemarkung, flur, nummer } für ein Flurstück oder [x1, y1, x2, y2] für alles in einem Rechteck
   const p = new URLSearchParams({ SERVICE: "WFS", VERSION: "2.0.0", REQUEST: "GetFeature", TYPENAMES: `ave:${typ}` });
@@ -691,8 +692,10 @@ function katasterUrl(typ, wo) { // wo: { gemarkung, flur, nummer } für ein Flur
   else {
     const literal = (wert) => String(wert).replace(/[<>&*?!]/g, "");
     const gleich = (feld, wert) => `<fes:PropertyIsEqualTo><fes:ValueReference>ave:${feld}</fes:ValueReference><fes:Literal>${literal(wert)}</fes:Literal></fes:PropertyIsEqualTo>`;
-    const zwei = "adresse" in wo // Lagebezeichnung enthält Straße und Hausnummer; der Buchstabe hinter der Nummer wird erst danach geprüft
-      ? gleich("gemeinde", wo.gemeinde) + `<fes:PropertyIsLike wildCard="*" singleChar="?" escapeChar="!" matchCase="false"><fes:ValueReference>ave:lagebeztxt</fes:ValueReference><fes:Literal>*${literal(adressTeile(wo.adresse).join(" ").replace(/[a-z]$/, "").trim())}*</fes:Literal></fes:PropertyIsLike>`
+    const wie = (muster) => `<fes:PropertyIsLike wildCard="*" singleChar="?" escapeChar="!" matchCase="false"><fes:ValueReference>ave:lagebeztxt</fes:ValueReference><fes:Literal>${muster}</fes:Literal></fes:PropertyIsLike>`;
+    const [strasse, nr] = "adresse" in wo ? adressTeile(literal(wo.adresse)) : [], m = adressMuster(strasse || ""), zahl = (nr || "").replace(/[a-z]$/, ""); // der Buchstabe hinter der Nummer wird erst danach geprüft
+    const zwei = "adresse" in wo // Lagebezeichnung wie "Legdenweg 20, 22 a; Am Berg 3": die Nummer steht gleich hinter der Straße oder weiter hinten in ihrer Liste
+      ? gleich("gmdschl", GEMEINDE) + (zahl ? `<fes:Or>${wie(`*${m}?${zahl}*`)}${wie(`*${m}?*, ${zahl}*`)}</fes:Or>` : wie(`*${m}*`))
       : gleich("gemarkung", wo.gemarkung) + gleich("flur", wo.flur) + gleich("flstnrzae", wo.nummer);
     const bedingung = "kennzeichen" in wo ? gleich("flstkennz", wo.kennzeichen) : `<fes:And>${zwei}</fes:And>`; // das Kennzeichen ist eindeutig und kommt am schnellsten zurück
     if ("adresse" in wo) p.set("COUNT", "60");
@@ -712,19 +715,49 @@ function linkLies(raute) {
   return { kennzeichen: m[1], ort };
 }
 
-function adressTeile(s) { // "Hölderlinweg 51a" -> ["hölderlinweg", "51a"]; ohne Hausnummer bleibt die zweite Stelle leer
-  const t = s.toLowerCase().replace(/strasse/g, "straße").replace(/str\.\s*/g, "straße ").replace(/\s+/g, " ").trim(), m = t.match(/^(.*?)\s*(\d+)\s*([a-z]?)$/);
-  return m ? [m[1], m[2] + m[3]] : [t, ""];
+function adressTeile(s) { // "Eugen-Müller-Str. 27 a, 48155 Münster" -> ["eugen-müller-straße", "27a"]; ohne Hausnummer bleibt die zweite Stelle leer
+  const teile = s.toLowerCase().replace(/\b\d{5}\b/g, " ").split(",").map((x) => x.replace(/\s+/g, " ").trim()).filter(Boolean); // Postleitzahl weg; Ort und Ortsteil stehen vor oder hinter einem Komma
+  const t = (teile.find((x) => /\d/.test(x) && /[a-zäöüß]/.test(x)) || teile.find((x) => !/^m(ü|ue)nster(-\S+)?$/.test(x)) || "")
+    .replace(/^m(ü|ue)nster(-\S+)?\s+(?=.*\d)/, "").replace(/(\d\s*[a-z]?)\s+m(ü|ue)nster(-\S+)?$/, "$1") // "Münster Hölderlinweg 5", "Hölderlinweg 5 Münster-Hiltrup"
+    .replace(/strasse/g, "straße").replace(/str\.?(?=$|[\s\d-])/g, "straße ").replace(/\s+/g, " ").trim();
+  const m = t.match(/^(.*?)\s*(\d+)\s*([a-z]?)(?:\s*[-\/]\s*\d+\s*[a-z]?)?$/); // "20-26" und "20/22": die erste Nummer
+  return m && m[1] ? [m[1].trim(), m[2] + m[3]] : [t, ""];
 }
+// Schlüssel zum Vergleichen: Abkürzungen ausgeschrieben, Umlaute aufgelöst, ohne Leerzeichen, Bindestriche und Punkte. Gilt für die Eingabe wie für das Kataster.
+const adressSchluessel = (strasse) => strasse.toLowerCase().replace(/strasse/g, "straße").replace(/str\.?(?=$|[\s\d-])/g, "straße").replace(/(^|[\s-])st\.?(?=[\s-])/g, "$1sankt")
+  .replace(/ä/g, "ae").replace(/ö/g, "oe").replace(/ü/g, "ue").replace(/ß/g, "ss").replace(/[\s\-.']/g, "");
+// Muster für die Abfrage: Wo Schreibweisen auseinandergehen (Straße/Str., Sankt/St., ä/ae, ß/ss, Leerzeichen/Bindestrich), steht ein Stern.
+const adressMuster = (strasse) => strasse.toLowerCase().replace(/stra(ß|ss)e|str\.?(?=$|[\s\d-])/g, "str*").replace(/(^|[\s-])(st\.?|sankt)(?=[\s-])/g, "$1s*t")
+  .replace(/ä|ae|ö|oe|ü|ue|ß|ss|[\s\-.']+/g, "*").replace(/\*+/g, "*");
 
 function adressTreffer(eingabe, objekte) { // genau: Straße und Hausnummer stehen so in der Lagebezeichnung, etwa "Hölderlinweg 51, 51 a"
-  const [strasse, nr] = adressTeile(eingabe);
+  const [strasse, nr] = adressTeile(eingabe), schluessel = adressSchluessel(strasse);
   const passt = (o) => !!nr && (o.felder.lagebeztxt || "").split(";").some((teil) => {
     const m = teil.trim().toLowerCase().match(/^(.*?)\s*(\d.*)$/);
-    return !!m && m[1] === strasse && m[2].split(",").map((x) => x.replace(/\s/g, "")).includes(nr);
+    return !!m && adressSchluessel(m[1]) === schluessel && m[2].split(",").map((x) => x.replace(/\s/g, "")).includes(nr);
   });
   const alle = [...objekte].sort((x, y) => (x.felder.lagebeztxt || "").localeCompare(y.felder.lagebeztxt || "", "de", { numeric: true }));
   return { genau: alle.filter(passt), alle };
+}
+
+// Adresse suchen: hole bekommt die Adresse des Dienstes und liefert die Objekte. Ergebnis: { treffer } wenn eindeutig, { liste } zur Auswahl, sonst {}.
+// Erst die Gebäude: Die Abfrage ist schnell, und an ihnen steht jede Hausnummer. Das Flurstück ist das, auf dem das Haus steht.
+// Trägt kein Gebäude die Adresse (unbebaut, oder ohne Hausnummer gesucht), die Lagebezeichnung der Flurstücke; diese Abfrage dauert beim Land einige Sekunden.
+async function adressSuche(text, hole) {
+  if (adressTeile(text)[1]) {
+    const haeuser = adressTreffer(text, await hole(katasterUrl("GebaeudeBauwerk", { adresse: text }))).genau.filter((h) => h.ring), mitten = haeuser.map((h) => mittel(h.ring));
+    const xs = mitten.map((p) => p[0]), ys = mitten.map((p) => p[1]), nah = haeuser.length && Math.max(...xs) - Math.min(...xs) < 300 && Math.max(...ys) - Math.min(...ys) < 300;
+    if (nah) {
+      const flur = await hole(katasterUrl("Flurstueck", [Math.min(...xs) - 1, Math.min(...ys) - 1, Math.max(...xs) + 1, Math.max(...ys) + 1]));
+      const eigene = [...new Set(mitten.map((p) => flur.find((f) => innen(p, f.ring))).filter(Boolean))], mitAdresse = adressTreffer(text, eigene).genau;
+      if (eigene.length === 1) return { treffer: eigene[0] };
+      if (mitAdresse.length === 1) return { treffer: mitAdresse[0] }; // die Adresse steht an mehreren Gebäuden, etwa Haus und Garage: das Flurstück, das sie selbst führt
+      if (eigene.length) return { liste: eigene };
+    }
+  }
+  const t = adressTreffer(text, await hole(katasterUrl("Flurstueck", { adresse: text })));
+  if (t.genau.length === 1) return { treffer: t.genau[0] };
+  return t.alle.length ? { liste: [...t.genau, ...t.alle.filter((o) => !t.genau.includes(o))] } : {};
 }
 
 function katasterLies(gml) { // je Objekt: einfache Felder und der äußere Ring der größten Teilfläche
@@ -1334,7 +1367,7 @@ function fristKalender(frist, ort, stempel) { // ganztägiger Termin am Tag der 
 }
 
 if (typeof module !== "undefined") {
-  module.exports = { linkSchreibe, linkLies, adressTeile, adressTreffer, dxfSchreibe, de, stellplaetzeKfz, fahrradabstellplaetze, spielplatz, geschuetzt, abstandsflaeche, spielraum, feuerwehr,
+  module.exports = { linkSchreibe, linkLies, adressTeile, adressSchluessel, adressMuster, adressTreffer, adressSuche, dxfSchreibe, de, stellplaetzeKfz, fahrradabstellplaetze, spielplatz, geschuetzt, abstandsflaeche, spielraum, feuerwehr,
     flaeche, innen, liegtAuf, mitStrassen, freiraum, dxfText, dxfPolygone, lage, loesung, katasterUrl, katasterLies, strassenVorschlag, bplanUrl, bplanTreffer, starthaus, potenzial, umgebung, hoehenUrl, hoehenLies, unterlage, UNTERLAGEN, planWerte, vorAbsenden, versetzt, staffelStand, baugrenzeStand, freiflaechen, nebenflaechen, anlagenStand, anlageArt, fristStand, fristKalender };
 }
 </script>
@@ -1931,10 +1964,10 @@ async function sucheAdresse(text) {
   if (text.trim().length < 3) { zumAnfang("Bitte Straße und Hausnummer eintragen."); return; }
   schritt(0); vorhangAuf("laedt");
   try {
-    const t = adressTreffer(text, await hole(katasterUrl("Flurstueck", { adresse: text, gemeinde: "Münster" })));
-    if (!t.alle.length) { zumAnfang("Zu dieser Adresse findet das Kataster in Münster kein Flurstück. Bitte Straße und Hausnummer ausschreiben, zum Beispiel „Hölderlinweg 5“."); return; }
-    if (t.genau.length === 1 || t.alle.length === 1) { await uebernimm(t.genau[0] || t.alle[0]); return; }
-    adressListe = [...t.genau, ...t.alle.filter((o) => !t.genau.includes(o))];
+    const e = await adressSuche(text, hole);
+    if (e.treffer) { await uebernimm(e.treffer); return; }
+    if (!e.liste) { zumAnfang("Zu dieser Adresse findet das Kataster in Münster kein Flurstück. Bitte Straße und Hausnummer ausschreiben, zum Beispiel „Hölderlinweg 5“."); return; }
+    adressListe = e.liste;
     $("adresstreffer").innerHTML = `<option value="">Bitte wählen (${adressListe.length}${adressListe.length === 60 ? ", mehr zeigt das Kataster nicht auf einmal" : ""})</option>` + adressListe.map((o, i) => `<option value="${i}">${esc(o.felder.lagebeztxt || "ohne Adresse")} · Flur ${esc(o.felder.flur)}, Flurstück ${esc(o.felder.flstnrzae)} · ${Math.round(Math.abs(flaeche(o.ring)))} m²</option>`).join("");
     vorhangAuf("wahl");
   } catch { zumAnfang(AUSFALL); }
